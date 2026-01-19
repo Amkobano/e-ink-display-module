@@ -4,7 +4,7 @@ This service aggregates data from various sources for the E-Ink display project.
 
 ## Structure
 
-- `extract_prayer_times.py` - Extracts prayer times from Mawaqit website
+- `extract_prayer_times.py` - Extracts prayer times (private, not in repo)
 - `extract_weather.py` - Fetches weather data from OpenWeatherMap API
 - `aggregator.py` - Combines all data sources into a single JSON file
 - `requirements.txt` - Python dependencies
@@ -17,21 +17,20 @@ This service aggregates data from various sources for the E-Ink display project.
 pip install -r requirements.txt
 ```
 
-2. Set up OpenWeatherMap API key (free tier available):
+2. Set up environment variables:
 ```bash
+# OpenWeatherMap API key (get free key at: https://openweathermap.org/api)
 export OPENWEATHER_API_KEY='your_api_key_here'
-```
 
-Get your free API key at: https://openweathermap.org/api
+# Prayer times URL (if using prayer times feature)
+export PRAYER_TIMES_URL='your_mawaqit_url_here'
+```
 
 ## Usage
 
 ### Test individual extractors
 
 ```bash
-# Test prayer times extraction
-python extract_prayer_times.py
-
 # Test weather extraction
 python extract_weather.py
 ```
@@ -43,6 +42,8 @@ python aggregator.py
 ```
 
 This will generate `output/display_data.json` with all collected data.
+
+**Note:** Prayer times extraction logic is kept private. The aggregator will include prayer times data if the `extract_prayer_times` module is available and `PRAYER_TIMES_URL` is configured.
 
 ## Output Format
 
