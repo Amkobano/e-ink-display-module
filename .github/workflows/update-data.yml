@@ -1,0 +1,58 @@
+# GitHub Actions Workflow: Daily Data Collection
+# This file tells GitHub what to do and when to do it
+
+name: Update E-Ink Display Data
+
+# WHEN should this run?
+on:
+  # Schedule: Run automatically every day
+  schedule:
+    # Cron expression: "At 06:00 UTC every day"
+    # Format: minute hour day month weekday
+    - cron: '0 6 * * *'
+  
+  # Also allow manual trigger (useful for testing)
+  workflow_dispatch:
+
+# WHAT should it do?
+jobs:
+  collect-data:
+    # WHERE should it run? (GitHub provides free Ubuntu servers)
+    runs-on: ubuntu-latest
+    
+    # STEPS to execute (in order)
+    steps:
+      # Step 1: Download your repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      # Step 3: Install required Python packages
+      - name: Install dependencies
+        run: |
+          cd data-collection
+          pip install -r requirements.txt
+      
+      # Step 4: Run the aggregator script
+      - name: Collect and aggregate data
+        env:
+          # Get API key from GitHub Secrets (we'll set this up next)
+          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        run: |
+          cd data-collection
+          python aggregator.py
+      
+      # Step 5: Save the generated JSON file back to the repository
+      - name: Commit and push updated data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data-collection/output/display_data.json
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || git commit -m "Update display data [automated]"
+          git push
