@@ -1,0 +1,14 @@
+# Data Collection Requirements for E-Ink Display Project
+
+# Web scraping and parsing
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# HTML parsing
+lxml>=4.9.0
+
+# Date and time handling
+python-dateutil>=2.8.0
+
+# Optional: Better timezone support
+pytz>=2023.3

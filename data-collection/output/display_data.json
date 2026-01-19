@@ -1,0 +1,24 @@
+{
+  "timestamp": "2026-01-12T08:00:00Z",
+  "location": "Stuttgart",
+  "next_update": "2026-01-13T06:00:00Z",
+  "prayer_times": {
+    "fajr": "06:15",
+    "dhuhr": "12:30",
+    "asr": "14:45",
+    "maghrib": "17:10",
+    "isha": "18:45"
+  },
+  "weather": {
+    "temperature": 15,
+    "feels_like": 13,
+    "humidity": 65,
+    "condition": "Cloudy",
+    "description": "broken clouds",
+    "icon": "04d",
+    "wind_speed": 3.5,
+    "sunrise": 1736667600,
+    "sunset": 1736698800
+  },
+  "status": "success"
+}
