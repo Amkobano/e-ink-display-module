@@ -3,7 +3,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 
-from extract_prayer_times import extract_prayer_times
+# Try to import prayer times extraction (optional, kept private)
+try:
+    from extract_prayer_times import extract_prayer_times
+    PRAYER_TIMES_AVAILABLE = True
+except ImportError:
+    PRAYER_TIMES_AVAILABLE = False
+    print("Note: Prayer times extraction not available (module not found)")
+
 from extract_weather import extract_weather
 
 
@@ -30,15 +37,18 @@ def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
         'status': 'success'
     }
     
-    # Extract prayer times
-    print("Extracting prayer times...")
-    prayer_times = extract_prayer_times()
-    if prayer_times:
-        aggregated_data['prayer_times'] = prayer_times
-        print("✓ Prayer times extracted successfully")
+    # Extract prayer times (if available)
+    if PRAYER_TIMES_AVAILABLE:
+        print("Extracting prayer times...")
+        prayer_times = extract_prayer_times()
+        if prayer_times:
+            aggregated_data['prayer_times'] = prayer_times
+            print("✓ Prayer times extracted successfully")
+        else:
+            aggregated_data['status'] = 'partial'
+            print("✗ Failed to extract prayer times")
     else:
-        aggregated_data['status'] = 'partial'
-        print("✗ Failed to extract prayer times")
+        print("⊘ Skipping prayer times (module not available)")
     
     # Extract weather data
     print("Extracting weather data...")

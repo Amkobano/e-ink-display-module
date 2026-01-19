@@ -45,3 +45,6 @@ Thumbs.db
 *.tmp
 temp/
 tmp/
+
+# Private prayer times extraction (mosque-specific)
+data-collection/extract_prayer_times.py
