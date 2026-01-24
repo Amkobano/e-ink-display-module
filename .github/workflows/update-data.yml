@@ -1,120 +1,120 @@
-# GitHub Actions Workflow: Daily Data Collection
-# This file tells GitHub what to do and when to do it
+# # GitHub Actions Workflow: Daily Data Collection
+# # This file tells GitHub what to do and when to do it
 
-name: Update E-Ink Display Data
+# name: Update E-Ink Display Data
 
-# WHEN should this run?
-on:
-  # Schedule: Run automatically every day
-  schedule:
-    # Cron expression: "At 06:00 UTC every day"
-    # Format: minute hour day month weekday
-    - cron: '0 6 * * *'
+# # WHEN should this run?
+# on:
+#   # Schedule: Run automatically every day
+#   # schedule:
+#   #   # Cron expression: "At 06:00 UTC every day"
+#   #   # Format: minute hour day month weekday
+#   #   - cron: '0 6 * * *'
   
-  # Also allow manual trigger (useful for testing)
-  workflow_dispatch:
+#   # Also allow manual trigger (useful for testing)
+#   workflow_dispatch:
 
-# WHAT should it do?
-jobs:
-  collect-data:
-    # WHERE should it run? (GitHub provides free Ubuntu servers)
-    runs-on: ubuntu-latest
+# # WHAT should it do?
+# jobs:
+#   collect-data:
+#     # WHERE should it run? (GitHub provides free Ubuntu servers)
+#     runs-on: ubuntu-latest
     
-    # STEPS to execute (in order)
-    steps:
-      # Step 1: Download your repository code
-      - name: Checkout repository
-        uses: actions/checkout@v4
+#     # STEPS to execute (in order)
+#     steps:
+#       # Step 1: Download your repository code
+#       - name: Checkout repository
+#         uses: actions/checkout@v4
       
-      # Step 2: Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+#       # Step 2: Set up Python environment
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
       
-      # Step 3: Install required Python packages
-      - name: Install dependencies
-        run: |
-          cd data-collection
-          pip install -r requirements.txt
+#       # Step 3: Install required Python packages
+#       - name: Install dependencies
+#         run: |
+#           cd data-collection
+#           pip install -r requirements.txt
       
-      # Step 4: Create private prayer times extractor
-      - name: Setup prayer times extraction
-        env:
-          PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
-        run: |
-          cd data-collection
-          cat > extract_prayer_times.py << 'PRAYER_SCRIPT_EOF'
-          from bs4 import BeautifulSoup
-          import requests
-          import json
-          import re
-          import os
-          from typing import Dict, Optional
+#       # Step 4: Create private prayer times extractor
+#       - name: Setup prayer times extraction
+#         env:
+#           PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
+#         run: |
+#           cd data-collection
+#           cat > extract_prayer_times.py << 'PRAYER_SCRIPT_EOF'
+#           from bs4 import BeautifulSoup
+#           import requests
+#           import json
+#           import re
+#           import os
+#           from typing import Dict, Optional
           
           
-          def extract_prayer_times(url: str = None) -> Optional[Dict[str, str]]:
-              """Extract prayer times from Mawaqit website."""
-              if url is None:
-                  url = os.environ.get('PRAYER_TIMES_URL')
+#           def extract_prayer_times(url: str = None) -> Optional[Dict[str, str]]:
+#               """Extract prayer times from Mawaqit website."""
+#               if url is None:
+#                   url = os.environ.get('PRAYER_TIMES_URL')
               
-              if not url:
-                  print("Error: PRAYER_TIMES_URL not set")
-                  return None
+#               if not url:
+#                   print("Error: PRAYER_TIMES_URL not set")
+#                   return None
               
-              try:
-                  response = requests.get(url, timeout=10)
-                  response.raise_for_status()
+#               try:
+#                   response = requests.get(url, timeout=10)
+#                   response.raise_for_status()
                   
-                  script_content = response.text
-                  conf_data_match = re.search(r'let confData = ({.*?});', script_content, re.DOTALL)
+#                   script_content = response.text
+#                   conf_data_match = re.search(r'let confData = ({.*?});', script_content, re.DOTALL)
                   
-                  if conf_data_match:
-                      json_str = conf_data_match.group(1)
-                      conf_data = json.loads(json_str)
+#                   if conf_data_match:
+#                       json_str = conf_data_match.group(1)
+#                       conf_data = json.loads(json_str)
                       
-                      times = conf_data.get('times', [])
-                      prayer_names = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']
+#                       times = conf_data.get('times', [])
+#                       prayer_names = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']
                       
-                      prayer_times = {}
-                      for name, time in zip(prayer_names, times):
-                          prayer_times[name] = time
+#                       prayer_times = {}
+#                       for name, time in zip(prayer_names, times):
+#                           prayer_times[name] = time
                       
-                      return prayer_times
-                  else:
-                      print("Could not find prayer times data in the page.")
-                      return None
+#                       return prayer_times
+#                   else:
+#                       print("Could not find prayer times data in the page.")
+#                       return None
                       
-              except Exception as e:
-                  print(f"Error extracting prayer times: {e}")
-                  return None
+#               except Exception as e:
+#                   print(f"Error extracting prayer times: {e}")
+#                   return None
           
           
-          if __name__ == "__main__":
-              result = extract_prayer_times()
-              if result:
-                  print("=== Prayer Times ===")
-                  for name, time in result.items():
-                      print(f"{name.capitalize()}: {time}")
-              else:
-                  print("Failed to extract prayer times")
-          PRAYER_SCRIPT_EOF
+#           if __name__ == "__main__":
+#               result = extract_prayer_times()
+#               if result:
+#                   print("=== Prayer Times ===")
+#                   for name, time in result.items():
+#                       print(f"{name.capitalize()}: {time}")
+#               else:
+#                   print("Failed to extract prayer times")
+#           PRAYER_SCRIPT_EOF
       
-      # Step 5: Run the aggregator script
-      - name: Collect and aggregate data
-        env:
-          OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
-        run: |
-          cd data-collection
-          python aggregator.py
+#       # Step 5: Run the aggregator script
+#       - name: Collect and aggregate data
+#         env:
+#           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+#           PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
+#         run: |
+#           cd data-collection
+#           python aggregator.py
       
-      # Step 6: Save the generated JSON file back to the repository
-      - name: Commit and push updated data
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add data-collection/output/display_data.json
-          # Only commit if there are changes
-          git diff --quiet && git diff --staged --quiet || git commit -m "Update display data [automated]"
-          git push
+#       # Step 6: Save the generated JSON file back to the repository
+#       - name: Commit and push updated data
+#         run: |
+#           git config --local user.email "github-actions[bot]@users.noreply.github.com"
+#           git config --local user.name "github-actions[bot]"
+#           git add data-collection/output/display_data.json
+#           # Only commit if there are changes
+#           git diff --quiet && git diff --staged --quiet || git commit -m "Update display data [automated]"
+#           git push
