@@ -3,6 +3,7 @@ import requests
 import json
 import re
 from typing import Dict, Optional
+from datetime import datetime
 
 
 def extract_prayer_times(url: str = 'https://mawaqit.net/de/islamisch-albanisches-zentrum-e-v-stuttgart-70376-germany') -> Optional[Dict[str, str]]:
@@ -17,9 +18,6 @@ def extract_prayer_times(url: str = 'https://mawaqit.net/de/islamisch-albanische
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         
-        # Parse the HTML content
-        soup = BeautifulSoup(response.text, "html.parser")
-        
         # Extract the confData JSON from the script tag
         script_content = response.text
         
@@ -30,14 +28,21 @@ def extract_prayer_times(url: str = 'https://mawaqit.net/de/islamisch-albanische
             json_str = conf_data_match.group(1)
             conf_data = json.loads(json_str)
             
-            # The times array contains: [Fajr, Dhuhr, Asr, Maghrib, Isha]
-            times = conf_data.get('times', [])
-            prayer_names = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha']
+            # Extract from calendar - contains astronomical times
+            # Calendar structure: month (0-indexed) -> day (string) -> [fajr, shuruq, dhuhr, asr, maghrib, isha]
+            calendar = conf_data.get('calendar', [])
+            prayer_names = ['fajr', 'shuruq', 'dhuhr', 'asr', 'maghrib', 'isha']
             
-            # Create dictionary with prayer times
             prayer_times = {}
-            for name, time in zip(prayer_names, times):
-                prayer_times[name] = time
+            if calendar:
+                now = datetime.now()
+                month_index = now.month - 1  # Calendar is 0-indexed
+                day_str = str(now.day)
+                
+                if month_index < len(calendar) and day_str in calendar[month_index]:
+                    day_times = calendar[month_index][day_str]
+                    for name, time in zip(prayer_names, day_times):
+                        prayer_times[name] = time
             
             return prayer_times
         else:

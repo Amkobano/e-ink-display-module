@@ -2,6 +2,17 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
+import os
+
+# Load environment variables from .env file if it exists
+env_path = Path(__file__).parent / '.env'
+if env_path.exists():
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                os.environ[key] = value
 
 # Try to import prayer times extraction (optional, kept private)
 try:
@@ -108,7 +119,7 @@ def main():
     print(f"Prayer times available: {len(data['prayer_times'])} times")
     print(f"Weather data available: {bool(data['weather'])}")
     print("=" * 50)
-
+    print(data)
 
 if __name__ == "__main__":
     main()
