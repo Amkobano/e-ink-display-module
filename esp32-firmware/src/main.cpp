@@ -13,6 +13,7 @@
 #include <ArduinoJson.h>
 #include <GxEPD2_7C.h>
 #include <U8g2_for_Adafruit_GFX.h>
+#include <time.h>
 #include "pins.h"
 #include "secrets.h"  // Contains WIFI_SSID and WIFI_PASSWORD (gitignored)
 
@@ -22,8 +23,14 @@
 // GitHub raw URL for your JSON data
 const char* DATA_URL = "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/data-collection/output/display_data.json";
 
-// Deep sleep duration (1 hour = 3600 seconds)
-#define SLEEP_SECONDS 3600
+// Wake time: 3 AM local time
+#define WAKE_HOUR 3
+#define WAKE_MINUTE 0
+
+// Timezone: Germany (CET/CEST with automatic DST)
+const char* NTP_SERVER = "pool.ntp.org";
+const long GMT_OFFSET_SEC = 3600;      // UTC+1 for CET
+const int DAYLIGHT_OFFSET_SEC = 3600;  // +1 hour for CEST (summer)
 // ============================================
 
 // Display: Waveshare 7.3" 7-color (GDEY073D46), 800x480 pixels
@@ -562,23 +569,66 @@ void displayError() {
     } while (display.nextPage());
 }
 
+void syncTime() {
+    Serial.println("Syncing time with NTP...");
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+    
+    // Wait for time to sync (max 10 seconds)
+    int attempts = 0;
+    while (time(nullptr) < 1000000000 && attempts < 20) {
+        delay(500);
+        Serial.print(".");
+        attempts++;
+    }
+    Serial.println(" Done!");
+}
+
+unsigned long calculateSleepSeconds() {
+    struct tm timeinfo;
+    if (!getLocalTime(&timeinfo)) {
+        Serial.println("Failed to get time, using 24h fallback");
+        return 86400;  // Fallback: 24 hours
+    }
+    
+    Serial.printf("Current time: %02d:%02d:%02d\n", 
+                  timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    
+    // Calculate seconds until next 3 AM
+    int currentSeconds = timeinfo.tm_hour * 3600 + timeinfo.tm_min * 60 + timeinfo.tm_sec;
+    int targetSeconds = WAKE_HOUR * 3600 + WAKE_MINUTE * 60;
+    
+    int sleepSeconds = targetSeconds - currentSeconds;
+    
+    // If target time has passed today, wake up tomorrow
+    if (sleepSeconds <= 0) {
+        sleepSeconds += 86400;  // Add 24 hours
+    }
+    
+    Serial.printf("Sleeping for %d seconds (%.1f hours) until %02d:%02d\n", 
+                  sleepSeconds, sleepSeconds / 3600.0, WAKE_HOUR, WAKE_MINUTE);
+    
+    return sleepSeconds;
+}
+
 void goToSleep() {
-    Serial.println("Going to deep sleep...");
+    Serial.println("Preparing for deep sleep...");
+    
+    // Sync time to calculate wake time
+    syncTime();
+    unsigned long sleepSeconds = calculateSleepSeconds();
+    
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
     display.hibernate();
-    esp_sleep_enable_timer_wakeup(SLEEP_SECONDS * 1000000ULL);
+    
+    Serial.println("Going to deep sleep...");
+    esp_sleep_enable_timer_wakeup(sleepSeconds * 1000000ULL);
     esp_deep_sleep_start();
 }
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
-    
-    Serial.println("\n===========================================");
-    Serial.println("  ESP32 Fajr Display");
-    Serial.println("===========================================\n");
-
     // Initialize display
     display.init(115200, true, 2, false);
 
