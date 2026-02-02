@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-02T16:17:40.691862Z",
+  "timestamp": "2026-02-02T23:13:05.321122Z",
   "location": "Stuttgart",
   "next_update": "2026-02-03T06:00:00Z",
   "prayer_times": {
@@ -12,33 +12,33 @@
   },
   "weather": {
     "current": {
-      "temperature": 4,
-      "feels_like": 2,
-      "humidity": 86,
+      "temperature": 0,
+      "feels_like": -2,
+      "humidity": 93,
       "condition": "Clouds",
-      "description": "few clouds",
-      "icon": "02d",
-      "wind_speed": 2.1,
-      "sunrise": 1770015133,
-      "sunset": 1770049300
+      "description": "broken clouds",
+      "icon": "04n",
+      "wind_speed": 1.5,
+      "sunrise": 1770101449,
+      "sunset": 1770135799
     },
     "forecast": [
       {
         "date": "2026-02-03",
-        "high": 5,
+        "high": 4,
         "low": 0,
         "condition": "Clouds"
       },
       {
         "date": "2026-02-04",
-        "high": 5,
+        "high": 4,
         "low": 0,
         "condition": "Clouds"
       },
       {
         "date": "2026-02-05",
         "high": 7,
-        "low": 2,
+        "low": 1,
         "condition": "Clouds"
       }
     ]
