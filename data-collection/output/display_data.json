@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-02T23:16:01.957050Z",
+  "timestamp": "2026-02-02T23:17:36.783277Z",
   "location": "Stuttgart",
   "next_update": "2026-02-03T06:00:00Z",
   "prayer_times": {
@@ -14,7 +14,7 @@
     "current": {
       "temperature": 0,
       "feels_like": -2,
-      "humidity": 93,
+      "humidity": 92,
       "condition": "Clouds",
       "description": "broken clouds",
       "icon": "04n",
