@@ -2,14 +2,17 @@
 # This file tells GitHub what to do and when to do it
 
 name: Update E-Ink Display Data
+permissions:
+  contents: write
+  # (rest of your triggers)
 
 # WHEN should this run?
 on:
   # Schedule: Run automatically every day
   schedule:
-    # Cron expression: "At 02:00 UTC every day" (3 AM CET / 4 AM CEST)
-    # Runs 1 hour before ESP32 wakes to ensure fresh data
-    - cron: '0 2 * * *'
+    # Cron expression: "At 06:00 UTC every day"
+    # Format: minute hour day month weekday
+    - cron: '0 0 * * *'
   
   # Also allow manual trigger (useful for testing)
   workflow_dispatch:
