@@ -1,11 +1,13 @@
 import requests
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, List
+from datetime import datetime
+from collections import defaultdict
 
 
 def extract_weather(city: str = "Stuttgart", country_code: str = "DE", api_key: Optional[str] = None) -> Optional[Dict]:
     """
-    Extract weather data from OpenWeatherMap API.
+    Extract current weather and 3-day forecast from OpenWeatherMap API.
     
     Args:
         city: City name
@@ -13,7 +15,7 @@ def extract_weather(city: str = "Stuttgart", country_code: str = "DE", api_key: 
         api_key: OpenWeatherMap API key (or set OPENWEATHER_API_KEY env variable)
     
     Returns:
-        Dict with weather information, or None if extraction fails
+        Dict with current weather and forecast, or None if extraction fails
     """
     # Get API key from parameter or environment variable
     if api_key is None:
@@ -24,34 +26,43 @@ def extract_weather(city: str = "Stuttgart", country_code: str = "DE", api_key: 
         return None
     
     try:
-        # OpenWeatherMap API endpoint
-        url = "http://api.openweathermap.org/data/2.5/weather"
-        
+        base_url = "http://api.openweathermap.org/data/2.5"
         params = {
             'q': f"{city},{country_code}",
             'appid': api_key,
-            'units': 'metric'  # Use Celsius
+            'units': 'metric'
         }
         
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
+        # Fetch current weather
+        current_response = requests.get(f"{base_url}/weather", params=params, timeout=10)
+        current_response.raise_for_status()
+        current_data = current_response.json()
         
-        data = response.json()
+        # Fetch 5-day forecast
+        forecast_response = requests.get(f"{base_url}/forecast", params=params, timeout=10)
+        forecast_response.raise_for_status()
+        forecast_data = forecast_response.json()
         
-        # Extract relevant weather information
-        weather_info = {
-            'temperature': round(data['main']['temp']),
-            'feels_like': round(data['main']['feels_like']),
-            'humidity': data['main']['humidity'],
-            'condition': data['weather'][0]['main'],
-            'description': data['weather'][0]['description'],
-            'icon': data['weather'][0]['icon'],
-            'wind_speed': round(data['wind']['speed'], 1),
-            'sunrise': data['sys']['sunrise'],
-            'sunset': data['sys']['sunset']
+        # Extract current weather
+        current = {
+            'temperature': round(current_data['main']['temp']),
+            'feels_like': round(current_data['main']['feels_like']),
+            'humidity': current_data['main']['humidity'],
+            'condition': current_data['weather'][0]['main'],
+            'description': current_data['weather'][0]['description'],
+            'icon': current_data['weather'][0]['icon'],
+            'wind_speed': round(current_data['wind']['speed'], 1),
+            'sunrise': current_data['sys']['sunrise'],
+            'sunset': current_data['sys']['sunset']
         }
         
-        return weather_info
+        # Process forecast - group by day and find high/low
+        forecast = _process_forecast(forecast_data['list'], days=3)
+        
+        return {
+            'current': current,
+            'forecast': forecast
+        }
         
     except requests.exceptions.RequestException as e:
         print(f"Error fetching weather data: {e}")
@@ -61,15 +72,62 @@ def extract_weather(city: str = "Stuttgart", country_code: str = "DE", api_key: 
         return None
 
 
+def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
+    """
+    Process forecast data to get daily high/low temperatures.
+    
+    The API returns data every 3 hours. We group by day and find min/max.
+    """
+    daily_data = defaultdict(lambda: {'temps': [], 'conditions': []})
+    today = datetime.now().date()
+    
+    for item in forecast_list:
+        # Parse timestamp
+        dt = datetime.fromtimestamp(item['dt'])
+        date_str = dt.strftime('%Y-%m-%d')
+        
+        # Skip today, we want future days
+        if dt.date() == today:
+            continue
+        
+        daily_data[date_str]['temps'].append(item['main']['temp'])
+        daily_data[date_str]['conditions'].append(item['weather'][0]['main'])
+    
+    # Build forecast for next 3 days
+    forecast = []
+    for date_str in sorted(daily_data.keys())[:days]:
+        data = daily_data[date_str]
+        
+        # Find most common condition (mode)
+        condition_counts = {}
+        for c in data['conditions']:
+            condition_counts[c] = condition_counts.get(c, 0) + 1
+        main_condition = max(condition_counts, key=condition_counts.get)
+        
+        forecast.append({
+            'date': date_str,
+            'high': round(max(data['temps'])),
+            'low': round(min(data['temps'])),
+            'condition': main_condition
+        })
+    
+    return forecast
+
+
 if __name__ == "__main__":
     # Test the extraction
     result = extract_weather()
     if result:
-        print("=== Weather Data ===")
-        print(f"Temperature: {result['temperature']}°C (feels like {result['feels_like']}°C)")
-        print(f"Condition: {result['condition']} - {result['description']}")
-        print(f"Humidity: {result['humidity']}%")
-        print(f"Wind Speed: {result['wind_speed']} m/s")
+        print("=== Current Weather ===")
+        current = result['current']
+        print(f"Temperature: {current['temperature']}°C (feels like {current['feels_like']}°C)")
+        print(f"Condition: {current['condition']} - {current['description']}")
+        print(f"Humidity: {current['humidity']}%")
+        print(f"Wind Speed: {current['wind_speed']} m/s")
+        
+        print("\n=== 3-Day Forecast ===")
+        for day in result['forecast']:
+            print(f"{day['date']}: {day['low']}°C - {day['high']}°C, {day['condition']}")
     else:
         print("Failed to extract weather data")
         print("\nTo use this script, you need an OpenWeatherMap API key:")

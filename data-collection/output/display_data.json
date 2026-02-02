@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-02-02T15:48:39.942625Z",
+  "timestamp": "2026-02-02T16:17:40.691862Z",
   "location": "Stuttgart",
   "next_update": "2026-02-03T06:00:00Z",
   "prayer_times": {
@@ -11,15 +11,37 @@
     "isha": "18:57"
   },
   "weather": {
-    "temperature": 4,
-    "feels_like": 3,
-    "humidity": 85,
-    "condition": "Clear",
-    "description": "clear sky",
-    "icon": "01d",
-    "wind_speed": 1.5,
-    "sunrise": 1770015133,
-    "sunset": 1770049300
+    "current": {
+      "temperature": 4,
+      "feels_like": 2,
+      "humidity": 86,
+      "condition": "Clouds",
+      "description": "few clouds",
+      "icon": "02d",
+      "wind_speed": 2.1,
+      "sunrise": 1770015133,
+      "sunset": 1770049300
+    },
+    "forecast": [
+      {
+        "date": "2026-02-03",
+        "high": 5,
+        "low": 0,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-02-04",
+        "high": 5,
+        "low": 0,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-02-05",
+        "high": 7,
+        "low": 2,
+        "condition": "Clouds"
+      }
+    ]
   },
   "status": "success"
 }

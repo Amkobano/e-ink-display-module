@@ -11,7 +11,10 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_7C.h>
-#include <Fonts/FreeMono18pt7b.h>
+#include <Fonts/FreeSans18pt7b.h>
+#include <Fonts/FreeSansBold24pt7b.h>
+#include <Fonts/FreeSans12pt7b.h>
+#include <Fonts/FreeSans9pt7b.h>
 #include "pins.h"
 #include "secrets.h"  // Contains WIFI_SSID and WIFI_PASSWORD (gitignored)
 
@@ -33,12 +36,21 @@ GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT> display(
 // Prayer times storage
 struct PrayerTimes {
     String fajr = "N/A";
+    String shuruq = "N/A";
     String dhuhr = "N/A";
     String asr = "N/A";
     String maghrib = "N/A";
     String isha = "N/A";
     String location = "";
 } prayerTimes;
+
+// Weather data storage
+struct WeatherData {
+    int temperature = 0;
+    String condition = "N/A";
+    float windSpeed = 0;
+    String icon = "";
+} weatherData;
 
 String errorMsg = "";
 
@@ -106,6 +118,7 @@ bool fetchPrayerTimes() {
     }
     
     prayerTimes.fajr = times["fajr"] | "N/A";
+    prayerTimes.shuruq = times["shuruq"] | "N/A";
     prayerTimes.dhuhr = times["dhuhr"] | "N/A";
     prayerTimes.asr = times["asr"] | "N/A";
     prayerTimes.maghrib = times["maghrib"] | "N/A";
@@ -114,12 +127,119 @@ bool fetchPrayerTimes() {
     
     Serial.println("Prayer times loaded:");
     Serial.println("  Fajr:    " + prayerTimes.fajr);
+    Serial.println("  Sunrise:  " + prayerTimes.shuruq);
     Serial.println("  Dhuhr:   " + prayerTimes.dhuhr);
     Serial.println("  Asr:     " + prayerTimes.asr);
     Serial.println("  Maghrib: " + prayerTimes.maghrib);
     Serial.println("  Isha:    " + prayerTimes.isha);
     
+    // Extract weather data
+    JsonObject weather = doc["weather"];
+    if (!weather.isNull()) {
+        weatherData.temperature = weather["temperature"] | 0;
+        weatherData.condition = weather["condition"] | "N/A";
+        weatherData.windSpeed = weather["wind_speed"] | 0.0f;
+        weatherData.icon = weather["icon"] | "";
+        
+        Serial.println("Weather loaded:");
+        Serial.println("  Temp:      " + String(weatherData.temperature) + "°C");
+        Serial.println("  Condition: " + weatherData.condition);
+        Serial.println("  Wind:      " + String(weatherData.windSpeed) + " m/s");
+        Serial.println("  Icon:      " + weatherData.icon);
+    }
+    
     return true;
+}
+
+// Draw weather icon based on OpenWeatherMap icon code
+void drawWeatherIcon(int x, int y, String iconCode) {
+    int size = 120;  // Large icon size
+    
+    // Clear/sunny (01d, 01n)
+    if (iconCode.startsWith("01")) {
+        // Sun - filled circle with rays (YELLOW)
+        display.fillCircle(x, y, size/3, GxEPD_YELLOW);
+        for (int i = 0; i < 8; i++) {
+            float angle = i * PI / 4;
+            int x1 = x + cos(angle) * (size/3 + 12);
+            int y1 = y + sin(angle) * (size/3 + 12);
+            int x2 = x + cos(angle) * (size/2);
+            int y2 = y + sin(angle) * (size/2);
+            display.drawLine(x1, y1, x2, y2, GxEPD_YELLOW);
+            display.drawLine(x1+1, y1, x2+1, y2, GxEPD_YELLOW);
+        }
+    }
+    // Few clouds (02d, 02n)
+    else if (iconCode.startsWith("02")) {
+        // Small sun (yellow) + cloud
+        display.fillCircle(x - 30, y - 20, 24, GxEPD_BLACK);
+        display.fillCircle(x + 10, y + 20, 36, GxEPD_BLACK);
+        display.fillCircle(x + 50, y + 20, 28, GxEPD_BLACK);
+        display.fillCircle(x + 30, y, 32, GxEPD_BLACK);
+        display.fillRect(x - 26, y + 20, 104, 36, GxEPD_BLACK);
+    }
+    // Scattered/broken clouds (03d, 03n, 04d, 04n)
+    else if (iconCode.startsWith("03") || iconCode.startsWith("04")) {
+        // Cloud shape - larger
+        display.fillCircle(x - 20, y + 10, 36, GxEPD_BLACK);
+        display.fillCircle(x + 30, y + 10, 28, GxEPD_BLACK);
+        display.fillCircle(x + 10, y - 16, 32, GxEPD_BLACK);
+        display.fillRect(x - 56, y + 10, 116, 40, GxEPD_BLACK);
+    }
+    // Rain (09d, 09n, 10d, 10n)
+    else if (iconCode.startsWith("09") || iconCode.startsWith("10")) {
+        // Cloud + rain drops - larger
+        display.fillCircle(x - 20, y - 20, 28, GxEPD_BLACK);
+        display.fillCircle(x + 20, y - 20, 24, GxEPD_BLACK);
+        display.fillCircle(x, y - 36, 24, GxEPD_BLACK);
+        display.fillRect(x - 48, y - 20, 96, 28, GxEPD_BLACK);
+        // Rain drops - larger and thicker
+        for (int i = 0; i < 4; i++) {
+            int dx = x - 30 + i * 20;
+            display.drawLine(dx, y + 20, dx - 10, y + 50, GxEPD_BLACK);
+            display.drawLine(dx + 1, y + 20, dx - 9, y + 50, GxEPD_BLACK);
+            display.drawLine(dx + 2, y + 20, dx - 8, y + 50, GxEPD_BLACK);
+        }
+    }
+    // Thunderstorm (11d, 11n)
+    else if (iconCode.startsWith("11")) {
+        // Cloud + lightning - larger
+        display.fillCircle(x - 20, y - 20, 28, GxEPD_BLACK);
+        display.fillCircle(x + 20, y - 20, 24, GxEPD_BLACK);
+        display.fillRect(x - 48, y - 20, 96, 28, GxEPD_BLACK);
+        // Lightning bolt - larger
+        display.fillTriangle(x, y + 10, x + 20, y + 10, x + 10, y + 40, GxEPD_BLACK);
+        display.fillTriangle(x + 10, y + 30, x + 30, y + 30, x, y + 70, GxEPD_BLACK);
+    }
+    // Snow (13d, 13n)
+    else if (iconCode.startsWith("13")) {
+        // Snowflake pattern - larger
+        for (int i = 0; i < 3; i++) {
+            float angle = i * PI / 3;
+            display.drawLine(x - cos(angle) * 50, y - sin(angle) * 50, 
+                           x + cos(angle) * 50, y + sin(angle) * 50, GxEPD_BLACK);
+            display.drawLine(x - cos(angle) * 50 + 1, y - sin(angle) * 50, 
+                           x + cos(angle) * 50 + 1, y + sin(angle) * 50, GxEPD_BLACK);
+        }
+        display.drawCircle(x, y, 16, GxEPD_BLACK);
+        display.drawCircle(x, y, 15, GxEPD_BLACK);
+    }
+    // Mist/fog (50d, 50n)
+    else if (iconCode.startsWith("50")) {
+        // Horizontal lines - larger
+        for (int i = 0; i < 5; i++) {
+            display.drawLine(x - 50, y - 30 + i * 15, x + 50, y - 30 + i * 15, GxEPD_BLACK);
+            display.drawLine(x - 50, y - 30 + i * 15 + 1, x + 50, y - 30 + i * 15 + 1, GxEPD_BLACK);
+            display.drawLine(x - 50, y - 30 + i * 15 + 2, x + 50, y - 30 + i * 15 + 2, GxEPD_BLACK);
+        }
+    }
+    // Default - question mark
+    else {
+        display.drawCircle(x, y, size/2, GxEPD_BLACK);
+        display.setFont(&FreeSansBold24pt7b);
+        display.setCursor(x - 12, y + 12);
+        display.print("?");
+    }
 }
 
 void displayPrayerTimes() {
@@ -131,55 +251,96 @@ void displayPrayerTimes() {
     do {
         display.fillScreen(GxEPD_WHITE);
         display.setTextColor(GxEPD_BLACK);
-        display.setFont(&FreeMono18pt7b);
         
-        int startY = 60;
-        int lineHeight = 70;
-        int labelX = 40;
-        int timeX = 280;
+        // ========== LEFT SIDE: Prayer Times ==========
+        int labelX = 60;
+        int timeX = 240;
+        int startY = 70;
+        int lineHeight = 58;
         
-        // Title / Location
+        // Title - bold, larger font
+        display.setFont(&FreeSansBold24pt7b);
         if (prayerTimes.location.length() > 0) {
             display.setCursor(labelX, startY);
-            display.print("Prayer Times - ");
             display.print(prayerTimes.location);
-        } else {
-            display.setCursor(labelX, startY);
-            display.print("Prayer Times");
         }
         
-        // Draw a separator line
-        display.drawLine(labelX, startY + 15, 760, startY + 15, GxEPD_BLACK);
+        // Thin separator line (left section only)
+        display.drawLine(labelX, startY + 20, 380, startY + 20, GxEPD_BLACK);
+        
+        // Prayer times - clean sans font
+        display.setFont(&FreeSans18pt7b);
+        int y = startY + 75;
         
         // Fajr
-        display.setCursor(labelX, startY + lineHeight);
-        display.print("Fajr:");
-        display.setCursor(timeX, startY + lineHeight);
+        display.setCursor(labelX, y);
+        display.print("Fajr");
+        display.setCursor(timeX, y);
         display.print(prayerTimes.fajr);
         
+        // Shuruq (sunrise) - slightly smaller
+        y += lineHeight;
+        display.setFont(&FreeSans12pt7b);
+        display.setCursor(labelX, y);
+        display.print("Sunrise");
+        display.setCursor(timeX, y);
+        display.print(prayerTimes.shuruq);
+        display.setFont(&FreeSans18pt7b);
+        
         // Dhuhr
-        display.setCursor(labelX, startY + lineHeight * 2);
-        display.print("Dhuhr:");
-        display.setCursor(timeX, startY + lineHeight * 2);
+        y += lineHeight;
+        display.setCursor(labelX, y);
+        display.print("Dhuhr");
+        display.setCursor(timeX, y);
         display.print(prayerTimes.dhuhr);
         
         // Asr
-        display.setCursor(labelX, startY + lineHeight * 3);
-        display.print("Asr:");
-        display.setCursor(timeX, startY + lineHeight * 3);
+        y += lineHeight;
+        display.setCursor(labelX, y);
+        display.print("Asr");
+        display.setCursor(timeX, y);
         display.print(prayerTimes.asr);
         
         // Maghrib
-        display.setCursor(labelX, startY + lineHeight * 4);
-        display.print("Maghrib:");
-        display.setCursor(timeX, startY + lineHeight * 4);
+        y += lineHeight;
+        display.setCursor(labelX, y);
+        display.print("Maghrib");
+        display.setCursor(timeX, y);
         display.print(prayerTimes.maghrib);
         
         // Isha
-        display.setCursor(labelX, startY + lineHeight * 5);
-        display.print("Isha:");
-        display.setCursor(timeX, startY + lineHeight * 5);
+        y += lineHeight;
+        display.setCursor(labelX, y);
+        display.print("Isha");
+        display.setCursor(timeX, y);
         display.print(prayerTimes.isha);
+        
+        // ========== RIGHT SIDE: Weather ==========
+        int weatherX = 500;
+        int weatherStartY = 100;
+        
+        // Vertical divider line
+        display.drawLine(420, startY + 20, 420, 450, GxEPD_BLACK);
+        
+        // Weather icon (centered)
+        drawWeatherIcon(weatherX + 100, weatherStartY + 50, weatherData.icon);
+        
+        // Temperature - large and bold
+        display.setFont(&FreeSansBold24pt7b);
+        display.setCursor(weatherX, weatherStartY + 160);
+        display.print(String(weatherData.temperature) + " C");
+        // Degree symbol
+        display.drawCircle(weatherX + 58, weatherStartY + 132, 5, GxEPD_BLACK);
+        
+        // Condition
+        display.setFont(&FreeSans12pt7b);
+        display.setCursor(weatherX, weatherStartY + 200);
+        display.print(weatherData.condition);
+        
+        // Wind speed
+        display.setFont(&FreeSans9pt7b);
+        display.setCursor(weatherX, weatherStartY + 240);
+        display.print("Wind: " + String(weatherData.windSpeed, 1) + " m/s");
         
     } while (display.nextPage());
     
@@ -194,12 +355,13 @@ void displayError() {
     do {
         display.fillScreen(GxEPD_WHITE);
         display.setTextColor(GxEPD_BLACK);
-        display.setFont(&FreeMono18pt7b);
+        display.setFont(&FreeSansBold24pt7b);
         
-        display.setCursor(20, 60);
-        display.print("Error:");
+        display.setCursor(60, 200);
+        display.print("Error");
         
-        display.setCursor(20, 120);
+        display.setFont(&FreeSans18pt7b);
+        display.setCursor(60, 260);
         display.print(errorMsg);
         
     } while (display.nextPage());
