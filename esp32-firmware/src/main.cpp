@@ -24,8 +24,8 @@
 const char* DATA_URL = "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/data-collection/output/display_data.json";
 
 // Wake time: 3 AM local time
-#define WAKE_HOUR 3
-#define WAKE_MINUTE 0
+#define WAKE_HOUR 0
+#define WAKE_MINUTE 10
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char* NTP_SERVER = "pool.ntp.org";
