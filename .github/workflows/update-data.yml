@@ -128,4 +128,5 @@ jobs:
           git add data-collection/output/display_data.json
           # Only commit if there are changes
           git diff --quiet && git diff --staged --quiet || git commit -m "Update display data [automated]"
+          git pull --rebase origin main
           git push
