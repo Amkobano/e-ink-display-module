@@ -52,7 +52,7 @@ The generated JSON file has the following structure:
 ```json
 {
   "timestamp": "2026-01-12T08:00:00Z",
-  "location": "Stuttgart",
+  "location": "xyz",
   "next_update": "2026-01-13T06:00:00Z",
   "prayer_times": {
     "fajr": "06:15",
