@@ -16,13 +16,8 @@ if env_path.exists():
                 os.environ[key] = value
 
 # Try to import prayer times extraction (optional, kept private)
-try:
-    from extract_prayer_times import extract_prayer_times
-    PRAYER_TIMES_AVAILABLE = True
-except ImportError:
-    PRAYER_TIMES_AVAILABLE = False
-    print("Note: Prayer times extraction not available (module not found)")
-
+from extract_prayer_times import extract_prayer_times
+PRAYER_TIMES_AVAILABLE = True
 
 def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
     """
