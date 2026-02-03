@@ -12,8 +12,3 @@ python-dateutil>=2.8.0
 
 # Optional: Better timezone support
 pytz>=2023.3
-
-json
-re
-typing
-datetime
