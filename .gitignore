@@ -47,7 +47,7 @@ temp/
 tmp/
 
 # Private prayer times extraction (mosque-specific)
-data-collection/extract_prayer_times.py
+# data-collection/extract_prayer_times.py
 
 # ESP32 WiFi credentials (NEVER commit this!)
 esp32-firmware/src/secrets.h
