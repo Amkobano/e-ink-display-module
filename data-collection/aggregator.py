@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 import os
+from extract_weather import extract_weather
 
 # Load environment variables from .env file if it exists
 env_path = Path(__file__).parent / '.env'
@@ -21,8 +22,6 @@ try:
 except ImportError:
     PRAYER_TIMES_AVAILABLE = False
     print("Note: Prayer times extraction not available (module not found)")
-
-from extract_weather import extract_weather
 
 
 def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
