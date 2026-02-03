@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Dict, Any
 import os
 from extract_weather import extract_weather
+from extract_prayer_times import extract_prayer_times
+PRAYER_TIMES_AVAILABLE = True
 
 # Load environment variables from .env file if it exists
 env_path = Path(__file__).parent / '.env'
@@ -15,9 +17,6 @@ if env_path.exists():
                 key, value = line.split('=', 1)
                 os.environ[key] = value
 
-# Try to import prayer times extraction (optional, kept private)
-from extract_prayer_times import extract_prayer_times
-PRAYER_TIMES_AVAILABLE = True
 
 def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
     """
