@@ -12,7 +12,7 @@ on:
   schedule:
     # Cron expression: "At 06:00 UTC every day"
     # Format: minute hour day month weekday
-    - cron: '0 1 * * *'
+    - cron: '30 0 * * *'
   
   # Also allow manual trigger (useful for testing)
   workflow_dispatch:
