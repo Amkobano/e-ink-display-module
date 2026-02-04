@@ -1,17 +1,11 @@
 {
-  "timestamp": "2026-02-04T00:12:37.828445Z",
+  "timestamp": "2026-02-04T00:18:47.122228Z",
   "location": "Stuttgart",
-  "next_update": "2026-02-05T06:00:00Z",
   "next_update": "2026-02-05T06:00:00Z",
   "prayer_times": {
     "fajr": "07:13",
     "shuruq": "07:43",
-    "fajr": "07:13",
-    "shuruq": "07:43",
     "dhuhr": "12:42",
-    "asr": "15:03",
-    "maghrib": "17:31",
-    "isha": "19:00"
     "asr": "15:03",
     "maghrib": "17:31",
     "isha": "19:00"
@@ -39,12 +33,6 @@
         "date": "2026-02-06",
         "high": 7,
         "low": 1,
-        "condition": "Clouds"
-      },
-      {
-        "date": "2026-02-07",
-        "high": 9,
-        "low": 3,
         "condition": "Clouds"
       },
       {
