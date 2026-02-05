@@ -70,5 +70,6 @@ jobs:
         if: steps.commit.outputs.has_changes == 'true'
         run: |
           echo "Purging jsDelivr cache..."
-          curl -s -X POST "https://purge.jsdelivr.net/gh/Amkobano/e-ink-display-module@main/data-collection/output/display_data.json"
+          curl -s "https://purge.jsdelivr.net/gh/Amkobano/e-ink-display-module@main/data-collection/output/display_data.json"
+          echo ""
           echo "Cache purge requested"
