@@ -67,22 +67,26 @@ def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
     return aggregated_data
 
 
-def save_to_file(data: Dict[str, Any], output_path: str = "data-collection/output/display_data.json") -> bool:
+def save_to_file(data: Dict[str, Any], output_path = None) -> bool:
     """
     Save aggregated data to JSON file.
     
     Returns:
         True if successful, False otherwise
     """
-    try:
-        print(f"[DEBUG] Preparing to save file: {output_path}")
+    # Default to output directory relative to this script
+    if output_path is None:
+        output_file = Path(__file__).parent / "output" / "display_data.json"
+    else:
         output_file = Path(output_path)
+    try:
+        print(f"[DEBUG] Preparing to save file: {output_file}")
         output_file.parent.mkdir(parents=True, exist_ok=True)
         print(f"[DEBUG] Directory ensured: {output_file.parent.resolve()}")
         # Write JSON file with pretty formatting
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"\n✓ Data saved to {output_path}")
+        print(f"\n✓ Data saved to {output_file}")
         print(f"[DEBUG] File write complete: {output_file.resolve()}")
         return True
     except Exception as e:
