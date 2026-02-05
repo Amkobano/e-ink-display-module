@@ -97,13 +97,18 @@ bool connectWiFi() {
 }
 
 bool fetchPrayerTimes() {
-  Serial.println("Fetching JSON from GitHub...");
+  Serial.println("Fetching JSON from jsDelivr...");
 
   WiFiClientSecure client;
-  client.setInsecure(); // Skip certificate verification (OK for public GitHub)
+  client.setInsecure(); // Skip certificate verification (OK for public CDN)
 
   HTTPClient http;
+  http.setFollowRedirects(
+      HTTPC_STRICT_FOLLOW_REDIRECTS); // jsDelivr may redirect
+  http.setTimeout(15000);             // 15 second timeout
   http.begin(client, DATA_URL);
+  http.addHeader("User-Agent",
+                 "ESP32-EInk/1.0"); // Some CDNs require User-Agent
   int httpCode = http.GET();
 
   if (httpCode != HTTP_CODE_OK) {
