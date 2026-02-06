@@ -26,8 +26,8 @@ const char *DATA_URL =
     "data-collection/output/display_data.json";
 
 // Wake time: 3 AM local time
-#define WAKE_HOUR 1
-#define WAKE_MINUTE 0
+#define WAKE_HOUR 0
+#define WAKE_MINUTE 10
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char *NTP_SERVER = "pool.ntp.org";
