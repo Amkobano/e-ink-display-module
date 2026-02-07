@@ -1,4 +1,5 @@
 import json
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
@@ -105,7 +106,8 @@ def main():
     data = aggregate_data(location="Stuttgart")
     
     # Save to file
-    save_to_file(data)
+    if not save_to_file(data):
+        sys.exit(1)
     
     # Print summary
     print("\n" + "=" * 50)
