@@ -1,44 +1,44 @@
 {
-  "timestamp": "2026-02-06T03:14:54.940934Z",
+  "timestamp": "2026-02-07T00:07:16.210601Z",
   "location": "Stuttgart",
-  "next_update": "2026-02-07T06:00:00Z",
+  "next_update": "2026-02-08T06:00:00Z",
   "prayer_times": {
-    "fajr": "07:10",
-    "shuruq": "07:40",
+    "fajr": "07:09",
+    "shuruq": "07:39",
     "dhuhr": "12:42",
-    "asr": "15:06",
-    "maghrib": "17:34",
-    "isha": "19:03"
+    "asr": "15:07",
+    "maghrib": "17:36",
+    "isha": "19:04"
   },
   "weather": {
     "current": {
-      "temperature": -1,
-      "feels_like": -1,
-      "humidity": 92,
+      "temperature": 7,
+      "feels_like": 5,
+      "humidity": 91,
       "condition": "Clouds",
-      "description": "overcast clouds",
+      "description": "broken clouds",
       "icon": "04n",
-      "wind_speed": 0.5,
-      "sunrise": 1770360387,
-      "sunset": 1770395297
+      "wind_speed": 2.6,
+      "sunrise": 1770446697,
+      "sunset": 1770481797
     },
     "forecast": [
       {
-        "date": "2026-02-07",
-        "high": 6,
-        "low": 4,
-        "condition": "Clouds"
-      },
-      {
         "date": "2026-02-08",
         "high": 8,
-        "low": 2,
+        "low": 3,
         "condition": "Clouds"
       },
       {
         "date": "2026-02-09",
-        "high": 6,
+        "high": 7,
         "low": 3,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-02-10",
+        "high": 8,
+        "low": 1,
         "condition": "Clouds"
       }
     ]
