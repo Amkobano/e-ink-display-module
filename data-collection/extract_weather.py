@@ -5,18 +5,21 @@ from datetime import datetime
 from collections import defaultdict
 
 
-def extract_weather(city: str = "Stuttgart", country_code: str = "DE", api_key: Optional[str] = None) -> Optional[Dict]:
+def extract_weather(city: str = None, country_code: str = "DE", api_key: Optional[str] = None) -> Optional[Dict]:
     """
     Extract current weather and 3-day forecast from OpenWeatherMap API.
     
     Args:
-        city: City name
+        city: City name (defaults to LOCATION env var or "My City")
         country_code: ISO 3166 country code
         api_key: OpenWeatherMap API key (or set OPENWEATHER_API_KEY env variable)
     
     Returns:
         Dict with current weather and forecast, or None if extraction fails
     """
+    if city is None:
+        city = os.environ.get('LOCATION', 'My City')
+    
     # Get API key from parameter or environment variable
     if api_key is None:
         api_key = os.environ.get('OPENWEATHER_API_KEY')

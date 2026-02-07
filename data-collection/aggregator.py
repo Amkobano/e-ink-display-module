@@ -19,24 +19,28 @@ if env_path.exists():
                 os.environ[key] = value
 
 
-def aggregate_data(location: str = "Stuttgart") -> Dict[str, Any]:
+def aggregate_data(location: str = None) -> Dict[str, Any]:
     """
     Aggregate all data sources into a single JSON structure.
     
     Returns:
         Dict containing all display data
     """
-    # Current timestamp
-    now = datetime.utcnow()
+    # System time will be local time thanks to TZ environment variable
+    now = datetime.now()
     
-    # Calculate next update time (next day at 6 AM UTC)
+    # Use environment variable for location or default to "My City"
+    if location is None:
+        location = os.environ.get('LOCATION', 'My City')
+    
+    # Calculate next update time (next day at 6 AM)
     next_update = (now + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
     
     # Initialize data structure
     aggregated_data = {
-        'timestamp': now.isoformat() + 'Z',
+        'timestamp': now.isoformat(),
         'location': location,
-        'next_update': next_update.isoformat() + 'Z',
+        'next_update': next_update.isoformat(),
         'prayer_times': {},
         'weather': {},
         'status': 'success'
@@ -103,7 +107,7 @@ def main():
     print()
     
     # Aggregate all data
-    data = aggregate_data(location="Stuttgart")
+    data = aggregate_data()
     
     # Save to file
     if not save_to_file(data):

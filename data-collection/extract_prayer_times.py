@@ -38,9 +38,11 @@ def extract_prayer_times(url: str = None) -> Optional[Dict[str, str]]:
             
             prayer_times = {}
             if calendar:
+                # Use system clock (controlled by TZ env var in workflow)
                 now = datetime.now()
                 month_index = now.month - 1  # Calendar is 0-indexed
                 day_str = str(now.day)
+                print(f"[DEBUG] Fetching prayer times for local date: {now.strftime('%Y-%m-%d %H:%M:%S')}")
                 
                 if month_index < len(calendar) and day_str in calendar[month_index]:
                     day_times = calendar[month_index][day_str]

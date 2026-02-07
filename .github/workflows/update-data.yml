@@ -22,6 +22,8 @@ on:
 jobs:
   collect-data:
     runs-on: ubuntu-latest
+    env:
+      TZ: Europe/Berlin
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
