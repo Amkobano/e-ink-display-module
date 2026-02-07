@@ -22,7 +22,7 @@
 // ============================================
 // GitHub raw URL for your JSON data
 const char *DATA_URL =
-    "https://cdn.jsdelivr.net/gh/Amkobano/e-ink-display-module@main/"
+    "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/"
     "data-collection/output/display_data.json";
 
 // Wake time: 3 AM local time
