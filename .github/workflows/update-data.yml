@@ -10,9 +10,10 @@ permissions:
 on:
   # Schedule: Run automatically every day
   schedule:
-    # Cron expression: "At 06:00 UTC every day"
-    # Format: minute hour day month weekday
-    - cron: '0 0 * * *'
+    # GitHub's scheduler is often delayed at '00' or '30' minute marks.
+    # Using '47' (an odd minute) usually helps start the job faster.
+    # 23:47 UTC is 00:47 AM local time (CET/GMT+1).
+    - cron: '47 23 * * *'
   
   # Also allow manual trigger (useful for testing)
   workflow_dispatch:
