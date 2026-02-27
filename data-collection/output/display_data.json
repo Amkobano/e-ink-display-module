@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-02-26T01:00:09.881644",
+  "timestamp": "2026-02-27T01:00:31.475861",
   "location": "My City",
-  "next_update": "2026-02-27T06:00:00",
+  "next_update": "2026-02-28T06:00:00",
   "prayer_times": {
-    "fajr": "06:36",
-    "shuruq": "07:06",
+    "fajr": "06:34",
+    "shuruq": "07:04",
     "dhuhr": "12:41",
-    "asr": "15:31",
-    "maghrib": "18:07",
-    "isha": "19:33"
+    "asr": "15:32",
+    "maghrib": "18:08",
+    "isha": "19:34"
   },
   "weather": {},
   "status": "partial"
