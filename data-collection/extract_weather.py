@@ -81,11 +81,12 @@ def extract_weather(city: str = None, country_code: str = "DE", api_key: Optiona
 
 def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
     """
-    Process forecast data to get daily high/low temperatures.
+    Process forecast data to get daily average temperature and total precipitation.
     
-    The API returns data every 3 hours. We group by day and find min/max.
+    The API returns data every 3 hours. We group by day and average temperature,
+    sum precipitation, and find the most common condition.
     """
-    daily_data = defaultdict(lambda: {'temps': [], 'conditions': []})
+    daily_data = defaultdict(lambda: {'temps': [], 'conditions': [], 'pop': []})
     today = datetime.now().date()
     
     for item in forecast_list:
@@ -99,6 +100,8 @@ def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
         
         daily_data[date_str]['temps'].append(item['main']['temp'])
         daily_data[date_str]['conditions'].append(item['weather'][0]['main'])
+        # pop = probability of precipitation (0.0 to 1.0)
+        daily_data[date_str]['pop'].append(item.get('pop', 0.0))
     
     # Build forecast for next 3 days
     forecast = []
@@ -113,8 +116,8 @@ def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
         
         forecast.append({
             'date': date_str,
-            'high': round(max(data['temps'])),
-            'low': round(min(data['temps'])),
+            'temperature': round(sum(data['temps']) / len(data['temps'])),
+            'rain_chance': round(max(data['pop']) * 100),
             'condition': main_condition
         })
     

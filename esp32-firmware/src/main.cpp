@@ -30,9 +30,9 @@ const char *DATA_URL =
     "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/"
     "data-collection/output/display_data.json";
 
-// Wake time: 3 AM local time
+// Wake tim 
 #define WAKE_HOUR 0
-#define WAKE_MINUTE 10
+#define WAKE_MINUTE 15
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char *NTP_SERVER = "pool.ntp.org";
@@ -69,8 +69,8 @@ struct WeatherData {
 // Forecast data storage
 struct ForecastDay {
   String date = "";
-  int high = 0;
-  int low = 0;
+  int temperature = 0;
+  int rainChance = 0;
   String condition = "";
 };
 ForecastDay forecast[3];
@@ -189,13 +189,13 @@ bool fetchPrayerTimes() {
       for (int i = 0; i < 3 && i < forecastArray.size(); i++) {
         JsonObject day = forecastArray[i];
         forecast[i].date = day["date"] | "";
-        forecast[i].high = day["high"] | 0;
-        forecast[i].low = day["low"] | 0;
+        forecast[i].temperature = day["temperature"] | 0;
+        forecast[i].rainChance = day["rain_chance"] | 0;
         forecast[i].condition = day["condition"] | "";
 
         Serial.println("  " + forecast[i].date + ": " +
-                       String(forecast[i].high) + "/" +
-                       String(forecast[i].low) + "°C " + forecast[i].condition);
+                       String(forecast[i].temperature) + "°C " +
+                       String(forecast[i].rainChance) + "% " + forecast[i].condition);
       }
     }
   }
@@ -568,12 +568,17 @@ void displayPrayerTimes() {
       // Weather icon in the middle (larger)
       drawSmallWeatherIcon(boxCenterX, forecastY + 65, forecast[i].condition);
 
-      // High / Low temps at bottom - larger font
+      // Temperature and rain chance at bottom
       u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      String temps = String(forecast[i].high) + " / " + String(forecast[i].low);
+      String temps = String(forecast[i].temperature) + "C";
       tw = u8g2Fonts.getUTF8Width(temps.c_str());
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 118);
+      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 105);
       u8g2Fonts.print(temps);
+      u8g2Fonts.setFont(u8g2_font_helvR12_tf);
+      String rainStr = String(forecast[i].rainChance) + "%";
+      tw = u8g2Fonts.getUTF8Width(rainStr.c_str());
+      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 122);
+      u8g2Fonts.print(rainStr);
     }
 
   } while (display.nextPage());
@@ -663,11 +668,26 @@ void goToSleep() {
   esp_deep_sleep_start();
 }
 
+void clearDisplay() {
+  // Full white refresh to reset the display and eliminate ghosting
+  Serial.println("Clearing display...");
+  display.setFullWindow();
+  display.firstPage();
+  do {
+    display.fillScreen(GxEPD_WHITE);
+  } while (display.nextPage());
+  display.powerOff();
+  delay(500);
+}
+
 void setup() {
   Serial.begin(115200);
   delay(1000);
   // Initialize display
   display.init(115200, true, 2, false);
+
+  // Full white clear first to eliminate ghosting from previous image
+  clearDisplay();
 
   // Connect, fetch, display
   if (connectWiFi() && fetchPrayerTimes()) {
