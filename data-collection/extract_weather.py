@@ -10,7 +10,7 @@ def extract_weather(city: str = None, country_code: str = "DE", api_key: Optiona
     Extract current weather and 3-day forecast from OpenWeatherMap API.
     
     Args:
-        city: City name (defaults to LOCATION env var or "My City")
+        city: City name (defaults to LOCATION env var)
         country_code: ISO 3166 country code
         api_key: OpenWeatherMap API key (or set OPENWEATHER_API_KEY env variable)
     
@@ -18,7 +18,11 @@ def extract_weather(city: str = None, country_code: str = "DE", api_key: Optiona
         Dict with current weather and forecast, or None if extraction fails
     """
     if city is None:
-        city = os.environ.get('LOCATION', 'My City')
+        city = os.environ.get('LOCATION')
+    
+    if not city:
+        print("Error: No location provided. Set LOCATION environment variable.")
+        return None
     
     # Get API key from parameter or environment variable
     if api_key is None:

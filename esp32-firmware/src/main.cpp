@@ -17,6 +17,11 @@
 #include <WiFiClientSecure.h>
 #include <time.h>
 
+// Forward declarations to fix compilation errors
+void syncTime();
+unsigned long calculateSleepSeconds();
+void goToSleep();
+
 // ============================================
 // CONFIGURATION
 // ============================================

@@ -29,13 +29,13 @@ def aggregate_data(location: str = None) -> Dict[str, Any]:
     # System time will be local time thanks to TZ environment variable
     now = datetime.now()
     
-    # Use environment variable for location or default to "My City"
+    # Use environment variable for location
     if location is None:
-        location = os.environ.get('LOCATION', 'My City')
-    
+        location = os.environ.get('LOCATION', '')
+
     # Calculate next update time (next day at 6 AM)
     next_update = (now + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
-    
+
     # Initialize data structure
     aggregated_data = {
         'timestamp': now.isoformat(),
@@ -45,7 +45,11 @@ def aggregate_data(location: str = None) -> Dict[str, Any]:
         'weather': {},
         'status': 'success'
     }
-    
+
+    if not location:
+        print("✗ Error: LOCATION environment variable is not set. Weather will be skipped.")
+        aggregated_data['status'] = 'partial'
+
     # Extract prayer times (if available)
     if PRAYER_TIMES_AVAILABLE:
         print("Extracting prayer times...")

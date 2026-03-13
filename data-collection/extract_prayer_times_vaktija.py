@@ -4,7 +4,7 @@ import re
 from typing import Dict, Optional
 
 
-def extract_prayer_times_vaktija(url: str = 'https://vaktija.eu/de/location-secret') -> Optional[Dict[str, str]]:
+def extract_prayer_times_vaktija(url: str = None) -> Optional[Dict[str, str]]:
     """
     Extract prayer times from Vaktija.eu website.
     

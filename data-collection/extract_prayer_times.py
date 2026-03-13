@@ -16,6 +16,10 @@ def extract_prayer_times(url: str = None) -> Optional[Dict[str, str]]:
     """
     if url is None:
         url = os.environ.get('PRAYER_TIMES_URL')
+    
+    if not url:
+        print("Error: PRAYER_TIMES_URL is not set. Please set the environment variable.")
+        return None
     try:
         # Fetch the page
         response = requests.get(url, timeout=10)
