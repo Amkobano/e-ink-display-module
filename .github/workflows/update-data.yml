@@ -43,12 +43,11 @@ jobs:
       - name: Collect and aggregate data
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
-          # You can keep this if you want to override the URL via secrets, 
-          # otherwise the script defaults to the LOCATION_SECRET URL.
+          LOCATION: ${{ secrets.LOCATION }}
           PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
         run: |
           cd data-collection
-          # aggregator.py will now import the file you committed
+          # aggregator.py will now use the environment variables above
           python aggregator.py
       
       - name: Commit and push updated data
