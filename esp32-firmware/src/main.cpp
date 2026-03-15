@@ -30,9 +30,9 @@ const char *DATA_URL =
     "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/"
     "data-collection/output/display_data.json";
 
-// Wake tim 
+// Wake time: 00:30 CET - safely after workflow completes (even with GitHub delays)
 #define WAKE_HOUR 0
-#define WAKE_MINUTE 15
+#define WAKE_MINUTE 30
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char *NTP_SERVER = "pool.ntp.org";
