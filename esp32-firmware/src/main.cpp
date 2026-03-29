@@ -30,14 +30,14 @@ const char *DATA_URL =
     "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/"
     "data-collection/output/display_data.json";
 
-// Wake time: 00:30 CET - safely after workflow completes (even with GitHub delays)
-#define WAKE_HOUR 0
-#define WAKE_MINUTE 30
+// Wake time: 01:00 CET - safely after workflow completes (even with GitHub
+// delays)
+#define WAKE_HOUR 1
+#define WAKE_MINUTE 0
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char *NTP_SERVER = "pool.ntp.org";
-const long GMT_OFFSET_SEC = 3600;     // UTC+1 for CET
-const int DAYLIGHT_OFFSET_SEC = 3600; // +1 hour for CEST (summer)
+const char *TIMEZONE = "CET-1CEST,M3.5.0,M10.5.0/3";
 // ============================================
 
 // Display: Waveshare 7.3" 7-color (GDEY073D46), 800x480 pixels
@@ -195,7 +195,8 @@ bool fetchPrayerTimes() {
 
         Serial.println("  " + forecast[i].date + ": " +
                        String(forecast[i].temperature) + "°C " +
-                       String(forecast[i].rainChance) + "% " + forecast[i].condition);
+                       String(forecast[i].rainChance) + "% " +
+                       forecast[i].condition);
       }
     }
   }
@@ -452,28 +453,33 @@ void displayPrayerTimes() {
     u8g2Fonts.setForegroundColor(GxEPD_BLACK);
     u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
 
-    // ========== LEFT SIDE: Prayer Times (Google Material Design) ==========
-    int sectionX = 30;
-    int sectionWidth = 340;
-    int startY = 35;
+    // Vertical divider
+    display.fillRect(399, 40, 2, 430, GxEPD_BLACK);
+
+    // ========== LEFT SIDE: Prayer Times ==========
+    int leftCenter = 200;
 
     // Header with large title
-    u8g2Fonts.setFont(u8g2_font_helvR24_tf); // Light weight for Google style
-    u8g2Fonts.setCursor(sectionX, startY + 28);
-    u8g2Fonts.print("Prayer Times");
+    u8g2Fonts.setFont(u8g2_font_helvB24_tf);
+    const char *title = "Prayer Times";
+    int tw = u8g2Fonts.getUTF8Width(title);
+    u8g2Fonts.setCursor(leftCenter - tw / 2, 90);
+    u8g2Fonts.print(title);
 
-    // Location - subtle, below title
     if (prayerTimes.location.length() > 0) {
-      u8g2Fonts.setFont(u8g2_font_helvR12_tf);
-      u8g2Fonts.setCursor(sectionX, startY + 48);
+      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
+      tw = u8g2Fonts.getUTF8Width(prayerTimes.location.c_str());
+      u8g2Fonts.setCursor(leftCenter - tw / 2, 125);
       u8g2Fonts.print(prayerTimes.location);
     }
 
-    // Prayer list - Material Design style (no borders, divider lines)
-    int listStartY = startY + 75;
-    int rowHeight = 60;
+    // Prayer list
+    int listStartY = 180;
+    int rowHeight = 52;
+    int paddingX = 40;
+    int nameX = paddingX;
+    int timeX = 400 - paddingX;
 
-    // Prayer data
     String prayerNames[] = {"Fajr", "Sunrise", "Dhuhr",
                             "Asr",  "Maghrib", "Isha"};
     String prayerTimesArr[] = {prayerTimes.fajr,    prayerTimes.shuruq,
@@ -482,103 +488,105 @@ void displayPrayerTimes() {
 
     for (int i = 0; i < 6; i++) {
       int rowY = listStartY + i * rowHeight;
-      int rowCenterY =
-          rowY + rowHeight / 2 -
-          4; // Vertical center of row (-4 to account for divider offset)
 
-      // Divider line above each item (except first)
-      if (i > 0) {
-        display.drawLine(sectionX, rowY - 8, sectionX + sectionWidth, rowY - 8,
-                         GxEPD_BLACK);
-      }
-
-      // Prayer name - regular weight, left aligned, vertically centered
-      u8g2Fonts.setFont(u8g2_font_helvR18_tf);
-      u8g2Fonts.setCursor(sectionX, rowCenterY + 7);
+      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
+      u8g2Fonts.setCursor(nameX, rowY);
       u8g2Fonts.print(prayerNames[i]);
 
-      // Time - large, bold, right aligned, vertically centered
-      u8g2Fonts.setFont(u8g2_font_helvB24_tf);
-      int timeWidth = u8g2Fonts.getUTF8Width(prayerTimesArr[i].c_str());
-      u8g2Fonts.setCursor(sectionX + sectionWidth - timeWidth, rowCenterY + 10);
+      tw = u8g2Fonts.getUTF8Width(prayerTimesArr[i].c_str());
+      u8g2Fonts.setCursor(timeX - tw, rowY);
       u8g2Fonts.print(prayerTimesArr[i]);
+
+      // Dashed line below
+      int lineY = rowY + 12;
+      for (int x = nameX; x < timeX; x += 8) {
+        display.drawLine(x, lineY, x + 4, lineY, GxEPD_BLACK);
+        display.drawLine(x, lineY + 1, x + 4, lineY + 1, GxEPD_BLACK);
+      }
     }
 
     // ========== RIGHT SIDE: Weather ==========
-    int weatherStartY = 50;
-    // Weather section spans from divider to right edge: 390 to 800 = 410px
-    // Center point at 390 + 410/2 = 595
-    int weatherCenterX = 595;
+    int rightCenter = 600;
 
-    // Vertical divider line - subtle
-    display.drawLine(385, startY + 20, 385, 450, GxEPD_BLACK);
+    // Get current date
+    time_t now;
+    time(&now);
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+    char dateStr[20];
+    strftime(dateStr, sizeof(dateStr), "%d.%m.%Y", &timeinfo);
 
-    // Weather icon (centered at top)
-    drawWeatherIcon(weatherCenterX, weatherStartY + 60, weatherData.icon);
-
-    // Temperature - large and bold, centered below icon
     u8g2Fonts.setFont(u8g2_font_helvB24_tf);
-    String tempStr = String(weatherData.temperature) + " C";
-    int textWidth = u8g2Fonts.getUTF8Width(tempStr.c_str());
-    u8g2Fonts.setCursor(weatherCenterX - textWidth / 2, weatherStartY + 145);
-    u8g2Fonts.print(tempStr);
-    // Degree symbol
-    display.drawCircle(weatherCenterX - textWidth / 2 + 58, weatherStartY + 117,
-                       5, GxEPD_BLACK);
+    tw = u8g2Fonts.getUTF8Width(dateStr);
+    u8g2Fonts.setCursor(rightCenter - tw / 2, 90);
+    u8g2Fonts.print(dateStr);
 
-    // Condition - centered below temperature
-    u8g2Fonts.setFont(u8g2_font_helvR14_tf);
-    textWidth = u8g2Fonts.getUTF8Width(weatherData.condition.c_str());
-    u8g2Fonts.setCursor(weatherCenterX - textWidth / 2, weatherStartY + 175);
-    u8g2Fonts.print(weatherData.condition);
+    // Weather icon and current data - centered around rightCenter
+    // Icon center at rightCenter-70, text center at rightCenter+70
+    int iconX = rightCenter - 70;
+    int dataX = rightCenter + 70;
+    int weatherY = 180;
+
+    drawWeatherIcon(iconX, weatherY, weatherData.icon);
+
+    u8g2Fonts.setFont(u8g2_font_helvB18_tf);
+    String tempStr = String(weatherData.temperature) + " °C";
+    tw = u8g2Fonts.getUTF8Width(tempStr.c_str());
+    int line1Y = weatherY - 25;
+    u8g2Fonts.setCursor(dataX - tw / 2, line1Y);
+    u8g2Fonts.print(tempStr);
+
+    String condStr = weatherData.condition;
+    tw = u8g2Fonts.getUTF8Width(condStr.c_str());
+    int line2Y = weatherY + 15;
+    u8g2Fonts.setCursor(dataX - tw / 2, line2Y);
+    u8g2Fonts.print(condStr);
+
+    String rainStr = String(forecast[0].rainChance) + "% Rain";
+    tw = u8g2Fonts.getUTF8Width(rainStr.c_str());
+    int line3Y = weatherY + 55;
+    u8g2Fonts.setCursor(dataX - tw / 2, line3Y);
+    u8g2Fonts.print(rainStr);
 
     // ========== 3-DAY FORECAST ==========
-    int forecastY = weatherStartY + 200;
-    int boxWidth = 115;
-    int boxHeight = 130;
-    int boxSpacing = 8;
+    int forecastY = 290;
+    int boxWidth = 110;
+    int boxHeight = 155;
+    int boxSpacing = 15;
     int totalWidth = 3 * boxWidth + 2 * boxSpacing;
-    int startX = weatherCenterX - totalWidth / 2; // Center the 3 boxes
+    int startX = rightCenter - totalWidth / 2;
 
     for (int i = 0; i < 3; i++) {
       int boxX = startX + i * (boxWidth + boxSpacing);
       int boxCenterX = boxX + boxWidth / 2;
 
-      // Simple rounded rectangle with consistent 2px border
-      int r = 10; // Corner radius
-      // Draw outer rounded rectangle
-      display.drawRoundRect(boxX, forecastY, boxWidth, boxHeight, r,
-                            GxEPD_BLACK);
-      display.drawRoundRect(boxX + 1, forecastY + 1, boxWidth - 2,
-                            boxHeight - 2, r - 1, GxEPD_BLACK);
+      // Rounded rectangle
+      display.drawRoundRect(boxX, forecastY, boxWidth, boxHeight, 8, GxEPD_BLACK);
 
-      // Day name at top (bold, centered) - format DD.MM
       u8g2Fonts.setFont(u8g2_font_helvB18_tf);
       String dayLabel = "";
       if (forecast[i].date.length() >= 10) {
-        // Convert from YYYY-MM-DD to DD.MM
         String month = forecast[i].date.substring(5, 7);
         String day = forecast[i].date.substring(8, 10);
         dayLabel = day + "." + month;
       }
-      int tw = u8g2Fonts.getUTF8Width(dayLabel.c_str());
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 26);
+      tw = u8g2Fonts.getUTF8Width(dayLabel.c_str());
+      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 28);
       u8g2Fonts.print(dayLabel);
 
-      // Weather icon in the middle (larger)
-      drawSmallWeatherIcon(boxCenterX, forecastY + 65, forecast[i].condition);
+      drawSmallWeatherIcon(boxCenterX, forecastY + 66, forecast[i].condition);
 
-      // Temperature and rain chance at bottom
       u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      String temps = String(forecast[i].temperature) + "C";
+      String temps = String(forecast[i].temperature) + "°C";
       tw = u8g2Fonts.getUTF8Width(temps.c_str());
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 105);
-      u8g2Fonts.print(temps);
-      u8g2Fonts.setFont(u8g2_font_helvR12_tf);
-      String rainStr = String(forecast[i].rainChance) + "%";
-      tw = u8g2Fonts.getUTF8Width(rainStr.c_str());
       u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 122);
-      u8g2Fonts.print(rainStr);
+      u8g2Fonts.print(temps);
+
+      u8g2Fonts.setFont(u8g2_font_helvR14_tf);
+      String rStr = String(forecast[i].rainChance) + "%";
+      tw = u8g2Fonts.getUTF8Width(rStr.c_str());
+      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 142);
+      u8g2Fonts.print(rStr);
     }
 
   } while (display.nextPage());
@@ -612,7 +620,7 @@ void displayError() {
 
 void syncTime() {
   Serial.println("Syncing time with NTP...");
-  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+  configTzTime(TIMEZONE, NTP_SERVER);
 
   // Wait for time to sync (max 10 seconds)
   int attempts = 0;

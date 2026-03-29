@@ -22,4 +22,9 @@
 // Optional: Status LED
 #define LED_PIN     48  // Built-in LED on most ESP32-S3 boards
 
+// Manual refresh button (GPIO 0 = built-in BOOT button, active-LOW)
+// Connect an external button between this pin and GND if you want a dedicated button.
+// Must be an RTC-capable GPIO (0-21 on ESP32-S3) for ext0 deep-sleep wakeup.
+#define BUTTON_PIN  0
+
 #endif
