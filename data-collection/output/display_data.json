@@ -1,6 +1,5 @@
 {
-  "timestamp": "2026-06-19T13:06:02.671342",
-  "location": "Stuttgart",
+  "timestamp": "2026-06-19T13:18:53.925945",
   "next_update": "2026-06-20T06:00:00",
   "prayer_times": {
     "fajr": "04:30",
@@ -13,31 +12,31 @@
   "weather": {
     "current": {
       "temperature": 35,
-      "feels_like": 36,
-      "humidity": 40,
+      "feels_like": 37,
+      "humidity": 41,
       "condition": "Clouds",
       "description": "few clouds",
       "icon": "02d",
       "wind_speed": 0.9,
-      "sunrise": 1781839181,
-      "sunset": 1781897370
+      "sunrise": 1781839180,
+      "sunset": 1781897371
     },
     "forecast": [
       {
         "date": "2026-06-20",
-        "temperature": 26,
-        "rain_chance": 2,
+        "temperature": 25,
+        "rain_chance": 0,
         "condition": "Clear"
       },
       {
         "date": "2026-06-21",
-        "temperature": 27,
+        "temperature": 26,
         "rain_chance": 12,
         "condition": "Clouds"
       },
       {
         "date": "2026-06-22",
-        "temperature": 27,
+        "temperature": 26,
         "rain_chance": 15,
         "condition": "Clouds"
       }
