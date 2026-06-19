@@ -5,68 +5,47 @@ from datetime import datetime
 from collections import defaultdict
 
 
-def extract_weather(city: str = None, country_code: str = "DE", api_key: Optional[str] = None) -> Optional[Dict]:
+def extract_weather(city_id: int = None, api_key: Optional[str] = None) -> Optional[Dict]:
     """
     Extract current weather and 3-day forecast from OpenWeatherMap API.
-    
+
+    Uses a fixed OWM city ID for unambiguous location resolution — no geocoding needed.
+
     Args:
-        city: City name (defaults to LOCATION env var)
-        country_code: ISO 3166 country code
+        city_id: OWM city ID (defaults to OWM_CITY_ID env var, fallback 2825297)
         api_key: OpenWeatherMap API key (or set OPENWEATHER_API_KEY env variable)
-    
+
     Returns:
         Dict with current weather and forecast, or None if extraction fails
     """
-    if city is None:
-        city = os.environ.get('LOCATION')
-    
-    if not city:
-        print("Error: No location provided. Set LOCATION environment variable.")
-        return None
-    
+    if city_id is None:
+        city_id = int(os.environ.get('OWM_CITY_ID', '2825297'))
+
     # Get API key from parameter or environment variable
     if api_key is None:
         api_key = os.environ.get('OPENWEATHER_API_KEY')
-    
+
     if not api_key:
         print("Error: No API key provided. Set OPENWEATHER_API_KEY environment variable.")
         return None
-    
+
     try:
-        # Step 1: Geocode city+country to lat/lon using OWM Geocoding API.
-        # This unambiguously targets the correct country (e.g. CityName,DE vs CityName,US).
-        geo_response = requests.get(
-            "http://api.openweathermap.org/geo/1.0/direct",
-            params={'q': f"{city},{country_code}", 'limit': 1, 'appid': api_key},
-            timeout=10
-        )
-        geo_response.raise_for_status()
-        geo_results = geo_response.json()
-
-        if not geo_results:
-            print(f"Error: Could not geocode '{city},{country_code}' — no results returned.")
-            return None
-
-        lat = geo_results[0]['lat']
-        lon = geo_results[0]['lon']
-        resolved_country = geo_results[0].get('country', '?')
-        print(f"Geocoded '{city}' → lat={lat:.4f}, lon={lon:.4f}, country={resolved_country}")
-
         base_url = "http://api.openweathermap.org/data/2.5"
-        coord_params = {
-            'lat': lat,
-            'lon': lon,
+        id_params = {
+            'id': city_id,
             'appid': api_key,
             'units': 'metric'
         }
 
+        print(f"Fetching weather for OWM city ID {city_id}...")
+
         # Fetch current weather
-        current_response = requests.get(f"{base_url}/weather", params=coord_params, timeout=10)
+        current_response = requests.get(f"{base_url}/weather", params=id_params, timeout=10)
         current_response.raise_for_status()
         current_data = current_response.json()
 
         # Fetch 5-day forecast
-        forecast_response = requests.get(f"{base_url}/forecast", params=coord_params, timeout=10)
+        forecast_response = requests.get(f"{base_url}/forecast", params=id_params, timeout=10)
         forecast_response.raise_for_status()
         forecast_data = forecast_response.json()
         
@@ -159,7 +138,7 @@ if __name__ == "__main__":
         
         print("\n=== 3-Day Forecast ===")
         for day in result['forecast']:
-            print(f"{day['date']}: {day['low']}°C - {day['high']}°C, {day['condition']}")
+            print(f"{day['date']}: {day['temperature']}°C, {day['rain_chance']}% rain, {day['condition']}")
     else:
         print("Failed to extract weather data")
         print("\nTo use this script, you need an OpenWeatherMap API key:")
