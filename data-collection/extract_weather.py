@@ -44,6 +44,18 @@ def extract_weather(city_id: int = None, api_key: Optional[str] = None) -> Optio
         current_response.raise_for_status()
         current_data = current_response.json()
 
+        # Log resolved city so workflow output confirms the correct location
+        resolved_city = current_data.get('name', '?')
+        resolved_country = current_data.get('sys', {}).get('country', '?')
+        resolved_coord = current_data.get('coord', {})
+        print(f"Resolved city: {resolved_city}, {resolved_country} "
+              f"(lat={resolved_coord.get('lat')}, lon={resolved_coord.get('lon')})")
+
+        # Fetch current weather
+        current_response = requests.get(f"{base_url}/weather", params=id_params, timeout=10)
+        current_response.raise_for_status()
+        current_data = current_response.json()
+
         # Fetch 5-day forecast
         forecast_response = requests.get(f"{base_url}/forecast", params=id_params, timeout=10)
         forecast_response.raise_for_status()
