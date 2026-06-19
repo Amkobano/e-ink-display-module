@@ -9,7 +9,7 @@ def extract_prayer_times_vaktija(url: str = None) -> Optional[Dict[str, str]]:
     Extract prayer times from Vaktija.eu website.
     
     Args:
-        url: The vaktija.eu URL (can include location, e.g., 'https://vaktija.eu/de/location-secret')
+        url: The vaktija.eu URL (can include location, e.g., 'https://vaktija.eu/de/<city>')
     
     Returns:
         Dict with prayer names and times, or None if extraction fails

@@ -34,7 +34,7 @@ def extract_weather(city: str = None, country_code: str = "DE", api_key: Optiona
     
     try:
         # Step 1: Geocode city+country to lat/lon using OWM Geocoding API.
-        # This unambiguously targets the correct country (e.g. LOCATION_SECRET,DE vs LOCATION_SECRET,AR).
+        # This unambiguously targets the correct country (e.g. CityName,DE vs CityName,US).
         geo_response = requests.get(
             "http://api.openweathermap.org/geo/1.0/direct",
             params={'q': f"{city},{country_code}", 'limit': 1, 'appid': api_key},
