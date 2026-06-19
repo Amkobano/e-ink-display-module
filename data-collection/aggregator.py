@@ -36,10 +36,10 @@ def aggregate_data(location: str = None) -> Dict[str, Any]:
     # Calculate next update time (next day at 6 AM)
     next_update = (now + timedelta(days=1)).replace(hour=6, minute=0, second=0, microsecond=0)
 
-    # Initialize data structure
+    # Initialize data structure — location is intentionally omitted to avoid
+    # leaking the city name (stored as a GitHub secret) into the committed JSON.
     aggregated_data = {
         'timestamp': now.isoformat(),
-        'location': location,
         'next_update': next_update.isoformat(),
         'prayer_times': {},
         'weather': {},
