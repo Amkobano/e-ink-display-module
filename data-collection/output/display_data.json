@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-06-19T13:06:02.671342",
+  "location": "Stuttgart",
+  "next_update": "2026-06-20T06:00:00",
+  "prayer_times": {
+    "fajr": "04:30",
+    "shuruq": "05:19",
+    "dhuhr": "13:29",
+    "asr": "17:46",
+    "maghrib": "21:35",
+    "isha": "23:13"
+  },
+  "weather": {
+    "current": {
+      "temperature": 35,
+      "feels_like": 36,
+      "humidity": 40,
+      "condition": "Clouds",
+      "description": "few clouds",
+      "icon": "02d",
+      "wind_speed": 0.9,
+      "sunrise": 1781839181,
+      "sunset": 1781897370
+    },
+    "forecast": [
+      {
+        "date": "2026-06-20",
+        "temperature": 26,
+        "rain_chance": 2,
+        "condition": "Clear"
+      },
+      {
+        "date": "2026-06-21",
+        "temperature": 27,
+        "rain_chance": 12,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-06-22",
+        "temperature": 27,
+        "rain_chance": 15,
+        "condition": "Clouds"
+      }
+    ]
+  },
+  "status": "success"
+}
