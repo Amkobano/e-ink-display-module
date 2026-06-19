@@ -9,6 +9,8 @@
 #include "pins.h"
 #include "secrets.h" // Contains WIFI_SSID and WIFI_PASSWORD (gitignored)
 #include "display_utils.h"
+#include "page_dua.h"
+#include "page_prayer.h"
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <GxEPD2_7C.h>
@@ -48,14 +50,18 @@ GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT>
 // U8g2 fonts for Adafruit GFX - provides clean modern fonts like Open Sans
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
-// Prayer times storage (struct defined in globals.h)
-PrayerTimes prayerTimes;
+// --- RTC memory: survives deep sleep ---
+// Cached display data (structs use char[] so they are RTC-safe)
+RTC_DATA_ATTR static PrayerTimes prayerTimes;
+RTC_DATA_ATTR static WeatherData weatherData;
+RTC_DATA_ATTR static ForecastDay forecast[3];
+// Page state
+RTC_DATA_ATTR static uint8_t  currentPage  = 0;   // 0 = weather/prayer, 1 = dua
+RTC_DATA_ATTR static uint8_t  duaIndex     = 0;   // which dua to show next
+RTC_DATA_ATTR static time_t   nextWakeTime = 0;   // epoch of next scheduled refresh
+// ----------------------------------------
 
-// Weather data storage (struct defined in globals.h)
-WeatherData weatherData;
-
-// Forecast data storage (struct defined in globals.h)
-ForecastDay forecast[3];
+#define NUM_DUAS 84   // total pre-rendered BMP images
 
 String errorMsg = "";
 
@@ -186,185 +192,6 @@ bool fetchPrayerTimes() {
   return true;
 }
 
-void displayPrayerTimes() {
-  Serial.println("Updating display...");
-  display.setRotation(0);
-  display.setFullWindow();
-  display.firstPage();
-
-  do {
-    display.fillScreen(GxEPD_WHITE);
-
-    // Initialize U8g2 fonts for this page
-    u8g2Fonts.begin(display);
-    u8g2Fonts.setForegroundColor(GxEPD_BLACK);
-    u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
-
-    // Vertical divider
-    display.fillRect(399, 40, 2, 430, GxEPD_BLACK);
-
-    // ========== LEFT SIDE: Prayer Times ==========
-    int leftCenter = 200;
-
-    // Header with large title
-    u8g2Fonts.setFont(u8g2_font_helvB24_tf);
-    const char *title = "Prayer Times";
-    int tw = u8g2Fonts.getUTF8Width(title);
-    u8g2Fonts.setCursor(leftCenter - tw / 2, 90);
-    u8g2Fonts.print(title);
-
-    if (prayerTimes.location[0] != '\0') {
-      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      tw = u8g2Fonts.getUTF8Width(prayerTimes.location);
-      u8g2Fonts.setCursor(leftCenter - tw / 2, 125);
-      u8g2Fonts.print(prayerTimes.location);
-    }
-
-    // Prayer list
-    int listStartY = 180;
-    int rowHeight = 52;
-    int paddingX = 40;
-    int nameX = paddingX;
-    int timeX = 400 - paddingX;
-
-    String prayerNames[] = {"Fajr", "Sunrise", "Dhuhr",
-                            "Asr",  "Maghrib", "Isha"};
-    String prayerTimesArr[] = {prayerTimes.fajr,    prayerTimes.shuruq,
-                               prayerTimes.dhuhr,   prayerTimes.asr,
-                               prayerTimes.maghrib, prayerTimes.isha};
-
-    for (int i = 0; i < 6; i++) {
-      int rowY = listStartY + i * rowHeight;
-
-      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      u8g2Fonts.setCursor(nameX, rowY);
-      u8g2Fonts.print(prayerNames[i]);
-
-      tw = u8g2Fonts.getUTF8Width(prayerTimesArr[i].c_str());
-      u8g2Fonts.setCursor(timeX - tw, rowY);
-      u8g2Fonts.print(prayerTimesArr[i]);
-
-      // Dashed line below
-      int lineY = rowY + 12;
-      for (int x = nameX; x < timeX; x += 8) {
-        display.drawLine(x, lineY, x + 4, lineY, GxEPD_BLACK);
-        display.drawLine(x, lineY + 1, x + 4, lineY + 1, GxEPD_BLACK);
-      }
-    }
-
-    // ========== RIGHT SIDE: Weather ==========
-    int rightCenter = 600;
-
-    // Get current date
-    time_t now;
-    time(&now);
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
-    char dateStr[20];
-    strftime(dateStr, sizeof(dateStr), "%d.%m.%Y", &timeinfo);
-
-    u8g2Fonts.setFont(u8g2_font_helvB24_tf);
-    tw = u8g2Fonts.getUTF8Width(dateStr);
-    u8g2Fonts.setCursor(rightCenter - tw / 2, 90);
-    u8g2Fonts.print(dateStr);
-
-    // Weather icon and current data - centered around rightCenter
-    // Icon center at rightCenter-70, text center at rightCenter+70
-    int iconX = rightCenter - 70;
-    int dataX = rightCenter + 70;
-    int weatherY = 180;
-
-    drawWeatherIcon(iconX, weatherY, weatherData.icon);
-
-    u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-    String tempStr = String(weatherData.temperature) + " °C";
-    tw = u8g2Fonts.getUTF8Width(tempStr.c_str());
-    int line1Y = weatherY - 25;
-    u8g2Fonts.setCursor(dataX - tw / 2, line1Y);
-    u8g2Fonts.print(tempStr);
-
-    String condStr = weatherData.condition;
-    tw = u8g2Fonts.getUTF8Width(condStr.c_str());
-    int line2Y = weatherY + 15;
-    u8g2Fonts.setCursor(dataX - tw / 2, line2Y);
-    u8g2Fonts.print(condStr);
-
-    String rainStr = String(forecast[0].rainChance) + "% Rain";
-    tw = u8g2Fonts.getUTF8Width(rainStr.c_str());
-    int line3Y = weatherY + 55;
-    u8g2Fonts.setCursor(dataX - tw / 2, line3Y);
-    u8g2Fonts.print(rainStr);
-
-    // ========== 3-DAY FORECAST ==========
-    int forecastY = 290;
-    int boxWidth = 110;
-    int boxHeight = 155;
-    int boxSpacing = 15;
-    int totalWidth = 3 * boxWidth + 2 * boxSpacing;
-    int startX = rightCenter - totalWidth / 2;
-
-    for (int i = 0; i < 3; i++) {
-      int boxX = startX + i * (boxWidth + boxSpacing);
-      int boxCenterX = boxX + boxWidth / 2;
-
-      // Rounded rectangle
-      display.drawRoundRect(boxX, forecastY, boxWidth, boxHeight, 8, GxEPD_BLACK);
-
-      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      char dayLabel[8] = "";
-      if (strlen(forecast[i].date) >= 10) {
-        // date format: YYYY-MM-DD — extract DD.MM
-        snprintf(dayLabel, sizeof(dayLabel), "%.2s.%.2s",
-                 forecast[i].date + 8, forecast[i].date + 5);
-      }
-      tw = u8g2Fonts.getUTF8Width(dayLabel);
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 28);
-      u8g2Fonts.print(dayLabel);
-
-      drawSmallWeatherIcon(boxCenterX, forecastY + 66, forecast[i].condition);
-
-      u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-      String temps = String(forecast[i].temperature) + "°C";
-      tw = u8g2Fonts.getUTF8Width(temps.c_str());
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 122);
-      u8g2Fonts.print(temps);
-
-      u8g2Fonts.setFont(u8g2_font_helvR14_tf);
-      String rStr = String(forecast[i].rainChance) + "%";
-      tw = u8g2Fonts.getUTF8Width(rStr.c_str());
-      u8g2Fonts.setCursor(boxCenterX - tw / 2, forecastY + 142);
-      u8g2Fonts.print(rStr);
-    }
-
-  } while (display.nextPage());
-
-  Serial.println("Display updated!");
-}
-
-void displayError() {
-  display.setRotation(0);
-  display.setFullWindow();
-  display.firstPage();
-
-  do {
-    display.fillScreen(GxEPD_WHITE);
-
-    // Initialize U8g2 fonts
-    u8g2Fonts.begin(display);
-    u8g2Fonts.setForegroundColor(GxEPD_BLACK);
-    u8g2Fonts.setBackgroundColor(GxEPD_WHITE);
-
-    u8g2Fonts.setFont(u8g2_font_helvB24_tf);
-    u8g2Fonts.setCursor(60, 200);
-    u8g2Fonts.print("Error");
-
-    u8g2Fonts.setFont(u8g2_font_helvR18_tf);
-    u8g2Fonts.setCursor(60, 260);
-    u8g2Fonts.print(errorMsg);
-
-  } while (display.nextPage());
-}
-
 void syncTime() {
   Serial.println("Syncing time with NTP...");
   configTzTime(TIMEZONE, NTP_SERVER);
@@ -410,9 +237,12 @@ unsigned long calculateSleepSeconds() {
 void goToSleep() {
   Serial.println("Preparing for deep sleep...");
 
-  // Sync time to calculate wake time
   syncTime();
   unsigned long sleepSeconds = calculateSleepSeconds();
+
+  // Store the absolute epoch of the next scheduled wake so button-press
+  // wakeups can calculate remaining sleep time without NTP.
+  nextWakeTime = time(nullptr) + sleepSeconds;
 
   WiFi.disconnect(true);
   WiFi.mode(WIFI_OFF);
@@ -420,29 +250,73 @@ void goToSleep() {
 
   Serial.println("Going to deep sleep...");
   esp_sleep_enable_timer_wakeup(sleepSeconds * 1000000ULL);
+  // Wake on button LOW (button pulls GPIO to GND when pressed)
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);
   esp_deep_sleep_start();
 }
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  // Initialize display
-  display.init(115200, true, 2, false);
+  delay(500);
 
-  // Full white clear first to eliminate ghosting from previous image
-  clearDisplay();
+  esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
 
-  // Connect, fetch, display
-  if (connectWiFi() && fetchPrayerTimes()) {
-    displayPrayerTimes();
+  // Initialize display on every wakeup
+  display.init(115200, true, 20, false);
+
+  if (cause == ESP_SLEEP_WAKEUP_EXT0) {
+    // ---- Button press: toggle page, no WiFi needed ----
+    Serial.println("Wakeup: button press");
+
+    if (currentPage == 0) {
+      // Switch to dua page
+      currentPage = 1;
+    } else {
+      // Advance to next dua; wrap back to weather page after last dua
+      duaIndex = (duaIndex + 1) % NUM_DUAS;
+      if (duaIndex == 0) currentPage = 0;
+    }
+
+    Serial.printf("Page: %d, Dua: %d\n", currentPage, duaIndex);
+
+    if (currentPage == 0) {
+      displayPrayerTimes(prayerTimes, weatherData, forecast);
+    } else {
+      displayDua(duaIndex);
+    }
+
+    // Re-enable both wakeup sources — timer uses stored wake epoch
+    display.hibernate();
+    time_t now = time(nullptr);
+    int64_t remainingUs = ((int64_t)nextWakeTime - (int64_t)now) * 1000000LL;
+    if (remainingUs > 60000000LL) {   // only if more than 1 min remains
+      esp_sleep_enable_timer_wakeup(remainingUs);
+    } else {
+      // Wake time passed or very close — sleep until next scheduled cycle
+      unsigned long fallback = calculateSleepSeconds();
+      nextWakeTime = now + fallback;
+      esp_sleep_enable_timer_wakeup(fallback * 1000000ULL);
+    }
+    esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);
+    esp_deep_sleep_start();
+
   } else {
-    displayError();
-  }
+    // ---- Timer wakeup or first boot: fetch fresh data ----
+    Serial.println("Wakeup: timer / first boot");
+    currentPage = 0;
 
-  // Sleep for 1 hour then wake up and repeat
-  goToSleep();
+    clearDisplay();
+
+    if (connectWiFi() && fetchPrayerTimes()) {
+      displayPrayerTimes(prayerTimes, weatherData, forecast);
+    } else {
+      displayError(errorMsg.c_str());
+    }
+
+    goToSleep();
+  }
 }
 
 void loop() {
-  // Never reached - deep sleep resets to setup()
+  // Never reached — deep sleep resets to setup()
 }
