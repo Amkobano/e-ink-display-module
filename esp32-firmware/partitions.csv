@@ -1,0 +1,12 @@
+# Custom partition table for ESP32-S3-N16R8 (16MB flash)
+# App: 4MB  |  LittleFS: ~11.75MB
+#
+# 84 dua BMP images × ~48KB = ~4MB
+# dua-dhikr.json = ~100KB
+# Total LittleFS usage: ~4.1MB  →  well within 11.75MB
+#
+# Name,     Type,  SubType,  Offset,    Size
+nvs,        data,  nvs,      0x9000,    0x5000
+otadata,    data,  ota,      0xe000,    0x2000
+app0,       app,   ota_0,    0x10000,   0x400000
+littlefs,   data,  spiffs,   0x410000,  0xBF0000
