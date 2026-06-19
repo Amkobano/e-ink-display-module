@@ -65,7 +65,8 @@ def aggregate_data(location: str = None) -> Dict[str, Any]:
     
     # Extract weather data
     print("Extracting weather data...")
-    weather = extract_weather(city=location)
+    country_code = os.environ.get('COUNTRY_CODE', 'DE')
+    weather = extract_weather(city=location, country_code=country_code)
     if weather:
         aggregated_data['weather'] = weather
         print("✓ Weather data extracted successfully")

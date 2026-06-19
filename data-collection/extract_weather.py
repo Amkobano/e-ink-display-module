@@ -33,20 +33,40 @@ def extract_weather(city: str = None, country_code: str = "DE", api_key: Optiona
         return None
     
     try:
+        # Step 1: Geocode city+country to lat/lon using OWM Geocoding API.
+        # This unambiguously targets the correct country (e.g. LOCATION_SECRET,DE vs LOCATION_SECRET,AR).
+        geo_response = requests.get(
+            "http://api.openweathermap.org/geo/1.0/direct",
+            params={'q': f"{city},{country_code}", 'limit': 1, 'appid': api_key},
+            timeout=10
+        )
+        geo_response.raise_for_status()
+        geo_results = geo_response.json()
+
+        if not geo_results:
+            print(f"Error: Could not geocode '{city},{country_code}' — no results returned.")
+            return None
+
+        lat = geo_results[0]['lat']
+        lon = geo_results[0]['lon']
+        resolved_country = geo_results[0].get('country', '?')
+        print(f"Geocoded '{city}' → lat={lat:.4f}, lon={lon:.4f}, country={resolved_country}")
+
         base_url = "http://api.openweathermap.org/data/2.5"
-        params = {
-            'q': f"{city},{country_code}",
+        coord_params = {
+            'lat': lat,
+            'lon': lon,
             'appid': api_key,
             'units': 'metric'
         }
-        
+
         # Fetch current weather
-        current_response = requests.get(f"{base_url}/weather", params=params, timeout=10)
+        current_response = requests.get(f"{base_url}/weather", params=coord_params, timeout=10)
         current_response.raise_for_status()
         current_data = current_response.json()
-        
+
         # Fetch 5-day forecast
-        forecast_response = requests.get(f"{base_url}/forecast", params=params, timeout=10)
+        forecast_response = requests.get(f"{base_url}/forecast", params=coord_params, timeout=10)
         forecast_response.raise_for_status()
         forecast_data = forecast_response.json()
         
@@ -117,7 +137,9 @@ def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
         forecast.append({
             'date': date_str,
             'temperature': round(sum(data['temps']) / len(data['temps'])),
-            'rain_chance': round(max(data['pop']) * 100),
+            # Use mean PoP across all 3-hour slots — max() caused a single
+            # overnight shower to inflate the whole day to 100% rain chance.
+            'rain_chance': round((sum(data['pop']) / len(data['pop'])) * 100),
             'condition': main_condition
         })
     
