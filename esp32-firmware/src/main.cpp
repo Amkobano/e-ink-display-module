@@ -18,6 +18,7 @@
 #include <U8g2_for_Adafruit_GFX.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <driver/rtc_io.h>
 #include <time.h>
 
 // Forward declarations to fix compilation errors
@@ -61,7 +62,7 @@ RTC_DATA_ATTR static uint8_t  duaIndex     = 0;   // which dua to show next
 RTC_DATA_ATTR static time_t   nextWakeTime = 0;   // epoch of next scheduled refresh
 // ----------------------------------------
 
-#define NUM_DUAS 84   // total pre-rendered BMP images
+#define NUM_DUAS 73   // total pre-rendered BMP images
 
 String errorMsg = "";
 
@@ -250,8 +251,13 @@ void goToSleep() {
 
   Serial.println("Going to deep sleep...");
   esp_sleep_enable_timer_wakeup(sleepSeconds * 1000000ULL);
-  // Wake on button LOW (button pulls GPIO to GND when pressed)
-  esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);
+  // EXT1 ANY_LOW: wakes when GPIO2 is pulled LOW by the button.
+  // rtc_gpio_init + direction must be set before ext1 enable on ESP32-S3.
+  rtc_gpio_init((gpio_num_t)BUTTON_PIN);
+  rtc_gpio_set_direction((gpio_num_t)BUTTON_PIN, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_pullup_en((gpio_num_t)BUTTON_PIN);
+  rtc_gpio_pulldown_dis((gpio_num_t)BUTTON_PIN);
+  esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
   esp_deep_sleep_start();
 }
 
@@ -264,17 +270,16 @@ void setup() {
   // Initialize display on every wakeup
   display.init(115200, true, 20, false);
 
-  if (cause == ESP_SLEEP_WAKEUP_EXT0) {
+  if (cause == ESP_SLEEP_WAKEUP_EXT1) {
     // ---- Button press: toggle page, no WiFi needed ----
     Serial.println("Wakeup: button press");
 
     if (currentPage == 0) {
-      // Switch to dua page
       currentPage = 1;
     } else {
-      // Advance to next dua; wrap back to weather page after last dua
+      // Leaving dua page: advance index so the next visit shows a fresh dua
       duaIndex = (duaIndex + 1) % NUM_DUAS;
-      if (duaIndex == 0) currentPage = 0;
+      currentPage = 0;
     }
 
     Serial.printf("Page: %d, Dua: %d\n", currentPage, duaIndex);
@@ -285,19 +290,19 @@ void setup() {
       displayDua(duaIndex);
     }
 
-    // Re-enable both wakeup sources — timer uses stored wake epoch
+    // Re-enable both wakeup sources.
+    // Always recalculate sleep duration: time() can be near-zero after button
+    // wake (timezone not yet re-applied), making epoch arithmetic overflow the
+    // 48-bit RTC timer and cause an immediate spurious timer wakeup.
     display.hibernate();
-    time_t now = time(nullptr);
-    int64_t remainingUs = ((int64_t)nextWakeTime - (int64_t)now) * 1000000LL;
-    if (remainingUs > 60000000LL) {   // only if more than 1 min remains
-      esp_sleep_enable_timer_wakeup(remainingUs);
-    } else {
-      // Wake time passed or very close — sleep until next scheduled cycle
-      unsigned long fallback = calculateSleepSeconds();
-      nextWakeTime = now + fallback;
-      esp_sleep_enable_timer_wakeup(fallback * 1000000ULL);
-    }
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)BUTTON_PIN, 0);
+    unsigned long sleepSecs = calculateSleepSeconds();
+    nextWakeTime = time(nullptr) + sleepSecs;
+    esp_sleep_enable_timer_wakeup(sleepSecs * 1000000ULL);
+    rtc_gpio_init((gpio_num_t)BUTTON_PIN);
+    rtc_gpio_set_direction((gpio_num_t)BUTTON_PIN, RTC_GPIO_MODE_INPUT_ONLY);
+    rtc_gpio_pullup_en((gpio_num_t)BUTTON_PIN);
+    rtc_gpio_pulldown_dis((gpio_num_t)BUTTON_PIN);
+    esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
     esp_deep_sleep_start();
 
   } else {
@@ -308,6 +313,10 @@ void setup() {
     clearDisplay();
 
     if (connectWiFi() && fetchPrayerTimes()) {
+      // Shut down WiFi before the display refresh so the radio's ~200mA draw
+      // doesn't overlap with the display boost converter's peak current demand.
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
       displayPrayerTimes(prayerTimes, weatherData, forecast);
     } else {
       displayError(errorMsg.c_str());

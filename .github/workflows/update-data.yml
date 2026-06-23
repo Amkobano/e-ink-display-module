@@ -43,6 +43,7 @@ jobs:
       - name: Collect and aggregate data
         env:
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+          CITY_ID: ${{ secrets.CITY_ID }}
           LOCATION: ${{ secrets.LOCATION }}
           PRAYER_TIMES_URL: ${{ secrets.PRAYER_TIMES_URL }}
         run: |

@@ -31,10 +31,14 @@ except ImportError:
 
 try:
     import arabic_reshaper
+    from arabic_reshaper import ArabicReshaper
     from bidi.algorithm import get_display
 except ImportError:
     print("Missing dependencies: pip install arabic-reshaper python-bidi")
     sys.exit(1)
+
+# Default reshaper strips all harakat. Preserve them so tashkeel renders on the display.
+_reshaper = ArabicReshaper(configuration={'delete_harakat': False})
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 ROOT       = Path(__file__).parent.parent
@@ -59,7 +63,7 @@ FONT_SIZE_STEP = 4
 
 def prepare_arabic(text: str) -> str:
     """Reshape Arabic text and apply bidi for correct visual rendering."""
-    reshaped = arabic_reshaper.reshape(text)
+    reshaped = _reshaper.reshape(text)
     return get_display(reshaped)
 
 
@@ -122,6 +126,7 @@ def render_dua(arabic_text: str, output_path: Path) -> int:
     Returns the font size used.
     """
     lines, font, font_size = find_best_fit(arabic_text)
+    lines = list(reversed(lines))  # bidi reversal puts dua end first; restore reading order top-to-bottom
     ascent, descent = font.getmetrics()
     line_h = ascent + descent + LINE_GAP
     _, total_h = measure_block(lines, font)

@@ -19,7 +19,7 @@ def extract_weather(city_id: int = None, api_key: Optional[str] = None) -> Optio
         Dict with current weather and forecast, or None if extraction fails
     """
     if city_id is None:
-        city_id = int(os.environ.get('OWM_CITY_ID', '2825297'))
+        city_id = int(os.environ.get('CITY_ID', '2825297'))
 
     # Get API key from parameter or environment variable
     if api_key is None:
@@ -50,11 +50,6 @@ def extract_weather(city_id: int = None, api_key: Optional[str] = None) -> Optio
         resolved_coord = current_data.get('coord', {})
         print(f"Resolved city: {resolved_city}, {resolved_country} "
               f"(lat={resolved_coord.get('lat')}, lon={resolved_coord.get('lon')})")
-
-        # Fetch current weather
-        current_response = requests.get(f"{base_url}/weather", params=id_params, timeout=10)
-        current_response.raise_for_status()
-        current_data = current_response.json()
 
         # Fetch 5-day forecast
         forecast_response = requests.get(f"{base_url}/forecast", params=id_params, timeout=10)

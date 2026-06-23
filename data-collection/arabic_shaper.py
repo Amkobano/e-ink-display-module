@@ -21,12 +21,15 @@ import sys
 from pathlib import Path
 
 try:
-    import arabic_reshaper
+    from arabic_reshaper import ArabicReshaper
     from bidi.algorithm import get_display
 except ImportError:
     print("Missing dependencies. Run:")
     print("  pip install arabic-reshaper python-bidi")
     sys.exit(1)
+
+# Default reshaper strips all harakat. Preserve them so tashkeel is retained.
+_reshaper = ArabicReshaper(configuration={'delete_harakat': False})
 
 INPUT_PATH = Path(__file__).parent.parent / "data" / "dua-dhikr.json"
 OUTPUT_PATH = Path(__file__).parent.parent / "esp32-firmware" / "data" / "dua-dhikr.json"
@@ -34,7 +37,7 @@ OUTPUT_PATH = Path(__file__).parent.parent / "esp32-firmware" / "data" / "dua-dh
 
 def shape_arabic(text: str) -> str:
     """Reshape Arabic text and apply bidi algorithm for LTR rendering."""
-    reshaped = arabic_reshaper.reshape(text)
+    reshaped = _reshaper.reshape(text)
     return get_display(reshaped)
 
 

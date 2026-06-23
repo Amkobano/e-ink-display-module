@@ -31,7 +31,7 @@ static uint32_t read32(const uint8_t *buf, int offset) {
 void displayDua(uint8_t duaIndex) {
   Serial.printf("Rendering page 1: dua index %d\n", duaIndex);
 
-  if (!LittleFS.begin(false)) {
+  if (!LittleFS.begin(false, "/littlefs", 10, "littlefs")) {
     Serial.println("LittleFS mount failed!");
     display.setRotation(0);
     display.setFullWindow();
@@ -94,7 +94,11 @@ void displayDua(uint8_t duaIndex) {
   f.seek(dataOffset);
   uint8_t *buf = (uint8_t *)heap_caps_malloc(dataSize, MALLOC_CAP_SPIRAM);
   if (!buf) {
-    Serial.printf("PSRAM alloc failed (%u bytes)\n", dataSize);
+    Serial.printf("PSRAM alloc failed (%u bytes), trying heap\n", dataSize);
+    buf = (uint8_t *)malloc(dataSize);
+  }
+  if (!buf) {
+    Serial.printf("Heap alloc also failed (%u bytes)\n", dataSize);
     f.close();
     LittleFS.end();
     return;
