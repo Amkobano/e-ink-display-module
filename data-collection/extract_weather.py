@@ -12,7 +12,7 @@ def extract_weather(city_id: int = None, api_key: Optional[str] = None) -> Optio
     Uses a fixed OWM city ID for unambiguous location resolution — no geocoding needed.
 
     Args:
-        city_id: OWM city ID (defaults to OWM_CITY_ID env var, fallback 2825297)
+        city_id: OWM city ID (defaults to CITY_ID env var, fallback 2825297)
         api_key: OpenWeatherMap API key (or set OPENWEATHER_API_KEY env variable)
 
     Returns:
@@ -122,7 +122,7 @@ def _process_forecast(forecast_list: List[Dict], days: int = 3) -> List[Dict]:
         
         forecast.append({
             'date': date_str,
-            'temperature': round(sum(data['temps']) / len(data['temps'])),
+            'temperature': round(max(data['temps'])),
             # Use mean PoP across all 3-hour slots — max() caused a single
             # overnight shower to inflate the whole day to 100% rain chance.
             'rain_chance': round((sum(data['pop']) / len(data['pop'])) * 100),
