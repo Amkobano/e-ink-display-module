@@ -62,7 +62,7 @@ RTC_DATA_ATTR static uint8_t  duaIndex     = 0;   // which dua to show next
 RTC_DATA_ATTR static time_t   nextWakeTime = 0;   // epoch of next scheduled refresh
 // ----------------------------------------
 
-#define NUM_DUAS 73   // total pre-rendered BMP images
+#define NUM_DUAS 56   // total pre-rendered BMP images
 
 String errorMsg = "";
 
