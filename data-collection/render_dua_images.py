@@ -48,7 +48,7 @@ except ImportError:
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 ROOT          = Path(__file__).parent.parent
-INPUT_PATH    = ROOT / "data" / "dua-dhikr.json"
+INPUT_PATH    = ROOT / "data" / "dua-dhikr.json"      # source of truth
 OUTPUT_DIR    = ROOT / "esp32-firmware" / "data"
 FONTS_DIR     = Path(__file__).parent / "fonts"
 ARABIC_FONT   = FONTS_DIR / "NotoNaskhArabic-Bold.ttf"
