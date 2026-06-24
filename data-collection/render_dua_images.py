@@ -1,18 +1,17 @@
 """
-render_dua_images.py — Pre-render each dua's Arabic text as an 800×480 BMP image.
+render_dua_images.py — Pre-render each dua as an 800×480 1-bit BMP.
 
-Replaces the U8g2 runtime text rendering on the ESP32, which is limited to a 16px
-Arabic font. This script uses Pillow + NotoNaskhArabic + arabic-reshaper + python-bidi
-to render each dua at the largest font size that still fits the display, then saves
-the result as a 1-bit monochrome BMP directly into the LittleFS data directory.
+Uses HarfBuzz (uharfbuzz) for text shaping with full GPOS mark positioning,
+so tashkeel marks (kasra, fatha, damma, sukun …) are placed correctly relative
+to Arabic letter dots instead of overlapping them.
+FreeType (freetype-py) rasterises each shaped glyph at its HarfBuzz position.
 
 Usage:
-    pip install Pillow arabic-reshaper python-bidi
+    pip install Pillow uharfbuzz freetype-py
     python render_dua_images.py
 
-Input:  ../data/dua-dhikr.json
-Output: ../esp32-firmware/data/dua_000.bmp … dua_083.bmp
-        (overwrites existing files)
+Input:  ../data/dua-dhikr.json  (arabic field, with tashkeel)
+Output: ../esp32-firmware/data/dua_000.bmp … dua_NNN.bmp
 
 After running, flash the filesystem:
     cd ../esp32-firmware && pio run -t uploadfs
@@ -24,21 +23,22 @@ from pathlib import Path
 from typing import List, Tuple
 
 try:
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image
 except ImportError:
     print("Missing dependency: pip install Pillow")
     sys.exit(1)
 
 try:
-    import arabic_reshaper
-    from arabic_reshaper import ArabicReshaper
-    from bidi.algorithm import get_display
+    import uharfbuzz as hb
 except ImportError:
-    print("Missing dependencies: pip install arabic-reshaper python-bidi")
+    print("Missing dependency: pip install uharfbuzz")
     sys.exit(1)
 
-# Default reshaper strips all harakat. Preserve them so tashkeel renders on the display.
-_reshaper = ArabicReshaper(configuration={'delete_harakat': False})
+try:
+    import freetype
+except ImportError:
+    print("Missing dependency: pip install freetype-py")
+    sys.exit(1)
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 ROOT       = Path(__file__).parent.parent
@@ -47,40 +47,79 @@ OUTPUT_DIR = ROOT / "esp32-firmware" / "data"
 FONT_PATH  = Path(__file__).parent / "fonts" / "NotoNaskhArabic-Bold.ttf"
 
 # ── Display constants ──────────────────────────────────────────────────────────
-DISPLAY_W  = 800
-DISPLAY_H  = 480
-MARGIN_X   = 30   # horizontal margin on each side
-MARGIN_Y   = 20   # vertical margin top and bottom
-USABLE_W   = DISPLAY_W - 2 * MARGIN_X
-USABLE_H   = DISPLAY_H - 2 * MARGIN_Y
-LINE_GAP   = 8    # extra px between lines (on top of font ascent+descent)
+DISPLAY_W = 800
+DISPLAY_H = 480
+MARGIN_X  = 40    # horizontal margin on each side
+MARGIN_Y  = 30    # vertical margin (extra room for tashkeel at edges)
+USABLE_W  = DISPLAY_W - 2 * MARGIN_X
+USABLE_H  = DISPLAY_H - 2 * MARGIN_Y
+LINE_GAP  = 20    # extra px between lines (≈1.5× spacing for tashkeel room)
 
-# Font size search: try from largest down, step of 4
-FONT_SIZE_MAX = 120
-FONT_SIZE_MIN = 14
+FONT_SIZE_MAX  = 120
+FONT_SIZE_MIN  = 14
 FONT_SIZE_STEP = 4
 
-
-def prepare_arabic(text: str) -> str:
-    """Reshape Arabic text and apply bidi for correct visual rendering."""
-    reshaped = _reshaper.reshape(text)
-    return get_display(reshaped)
+# Load HarfBuzz blob/face once — reading the font file is the slow part.
+_hb_blob = hb.Blob.from_file_path(str(FONT_PATH))
+_hb_face = hb.Face(_hb_blob)
 
 
-def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> List[str]:
+# ── Font helpers ───────────────────────────────────────────────────────────────
+
+def _hb_font(size: int) -> hb.Font:
+    """HarfBuzz font scaled so positions are in 26.6 FP (>>6 gives pixels)."""
+    f = hb.Font(_hb_face)
+    f.scale = (size * 64, size * 64)
+    hb.ot_font_set_funcs(f)
+    return f
+
+
+def _ft_face(size: int) -> freetype.Face:
+    """FreeType face at size pt, 72 DPI (1 pt = 1 px)."""
+    f = freetype.Face(str(FONT_PATH))
+    f.set_char_size(size * 64)
+    return f
+
+
+# ── Shaping ────────────────────────────────────────────────────────────────────
+
+def _shape(text: str, font: hb.Font):
     """
-    Wrap text into lines that fit within max_width pixels using the given font.
-    Splits on spaces; single words wider than max_width go on their own line.
+    Shape Arabic text with HarfBuzz.
+
+    Returns glyphs in VISUAL LEFT-TO-RIGHT order (for RTL Arabic, the logically
+    last character is leftmost and appears first in the list).  Base glyphs have
+    positive x_advance; marks (kasra, fatha, …) have x_advance=0 and
+    x_offset/y_offset set by GPOS so they don't collide with letter dots.
+    """
+    buf = hb.Buffer()
+    buf.add_str(text)
+    buf.guess_segment_properties()   # detects RTL direction + Arabic script
+    hb.shape(font, buf)
+    return buf.glyph_infos, buf.glyph_positions
+
+
+def _width_px(text: str, font: hb.Font) -> int:
+    """Total advance width of shaped text in pixels."""
+    _, positions = _shape(text, font)
+    return sum(p.x_advance for p in positions) >> 6
+
+
+# ── Text wrapping ──────────────────────────────────────────────────────────────
+
+def _wrap(text: str, font: hb.Font) -> List[str]:
+    """
+    Wrap Arabic text into lines that fit USABLE_W.
+
+    Words are accumulated in logical order; HarfBuzz handles the RTL reordering
+    per line during rendering.  No post-reversal needed here.
     """
     words = text.split()
     lines: List[str] = []
     current = ""
-
     for word in words:
-        candidate = f"{current} {word}".strip() if current else word
-        bbox = font.getbbox(candidate)
-        w = bbox[2] - bbox[0]
-        if w <= max_width:
+        candidate = (current + " " + word).strip() if current else word
+        if _width_px(candidate, font) <= USABLE_W:
             current = candidate
         else:
             if current:
@@ -91,64 +130,105 @@ def wrap_text(text: str, font: ImageFont.FreeTypeFont, max_width: int) -> List[s
     return lines
 
 
-def measure_block(
-    lines: List[str], font: ImageFont.FreeTypeFont
-) -> Tuple[int, int]:
-    """Return (max_line_width, total_height) for a wrapped block."""
-    ascent, descent = font.getmetrics()
-    line_h = ascent + descent + LINE_GAP
-    total_h = len(lines) * line_h - LINE_GAP  # no extra gap after last line
-    max_w = max((font.getbbox(l)[2] - font.getbbox(l)[0]) for l in lines)
-    return max_w, total_h
+def _line_height(size: int) -> int:
+    """Line height in pixels: font ascender + |descender| + LINE_GAP."""
+    ft = _ft_face(size)
+    return ((ft.size.ascender - ft.size.descender) >> 6) + LINE_GAP
 
 
-def find_best_fit(arabic_text: str) -> Tuple[List[str], ImageFont.FreeTypeFont, int]:
-    """
-    Find the largest font size where all wrapped lines fit within USABLE_W × USABLE_H.
-    Returns (lines, font, font_size).
-    """
+# ── Fit search ─────────────────────────────────────────────────────────────────
+
+def find_best_fit(text: str) -> Tuple[List[str], int]:
+    """Return (lines, font_size) for the largest size that fits the display."""
     for size in range(FONT_SIZE_MAX, FONT_SIZE_MIN - 1, -FONT_SIZE_STEP):
-        font = ImageFont.truetype(str(FONT_PATH), size)
-        lines = wrap_text(arabic_text, font, USABLE_W)
-        _, total_h = measure_block(lines, font)
+        font  = _hb_font(size)
+        lines = _wrap(text, font)
+        lh    = _line_height(size)
+        total_h = len(lines) * lh - LINE_GAP
         if total_h <= USABLE_H:
-            return lines, font, size
-
-    # Fallback: minimum size (should always fit)
-    font = ImageFont.truetype(str(FONT_PATH), FONT_SIZE_MIN)
-    lines = wrap_text(arabic_text, font, USABLE_W)
-    return lines, font, FONT_SIZE_MIN
+            return lines, size
+    font = _hb_font(FONT_SIZE_MIN)
+    return _wrap(text, font), FONT_SIZE_MIN
 
 
-def render_dua(arabic_text: str, output_path: Path) -> int:
+# ── Rendering ──────────────────────────────────────────────────────────────────
+
+def render_line(img: Image.Image, text: str,
+                font: hb.Font, ft: freetype.Face,
+                cx: int, baseline_y: int) -> None:
     """
-    Render arabic_text onto an 800×480 1-bit BMP, vertically and horizontally centered.
-    Returns the font size used.
+    Draw one line of shaped Arabic text, horizontally centred at cx.
+
+    Each glyph (including marks) is placed at the position computed by
+    HarfBuzz GPOS, so kasra appears below the letter dot, fatha above it, etc.
+
+    Coordinate conventions:
+      cursor_x / baseline_y  — screen coords, y increases downward
+      pos.x_offset / y_offset — HarfBuzz 26.6 FP; positive y = UP (font coords)
+      bitmap_top              — FreeType pixels above the baseline (positive = up)
     """
-    lines, font, font_size = find_best_fit(arabic_text)
-    lines = list(reversed(lines))  # bidi reversal puts dua end first; restore reading order top-to-bottom
-    ascent, descent = font.getmetrics()
-    line_h = ascent + descent + LINE_GAP
-    _, total_h = measure_block(lines, font)
+    infos, positions = _shape(text, font)
 
-    # 1-bit image: 1 = white (background), 0 = black (text)
-    img = Image.new("1", (DISPLAY_W, DISPLAY_H), 1)
-    draw = ImageDraw.Draw(img)
+    # Centre the line: total advance width = sum of base advances (marks are 0)
+    total_w = sum(p.x_advance for p in positions) >> 6
+    cursor_x = cx - total_w // 2
 
-    # Vertically center the block
+    pixels = img.load()
+
+    for info, pos in zip(infos, positions):
+        try:
+            ft.load_glyph(info.codepoint,
+                          freetype.FT_LOAD_RENDER | freetype.FT_LOAD_TARGET_NORMAL)
+        except Exception:
+            cursor_x += pos.x_advance >> 6
+            continue
+
+        bm = ft.glyph.bitmap
+        if bm.width > 0 and bm.rows > 0:
+            # x_offset: horizontal shift from cursor (centres mark over base)
+            # y_offset: vertical shift; negative = downward on screen
+            ox = pos.x_offset >> 6
+            oy = pos.y_offset >> 6   # negative for below-baseline marks (kasra …)
+
+            # Top-left corner of this glyph's bitmap in screen coords:
+            #   gx = cursor + GPOS x-offset + FT bearing
+            #   gy = baseline - GPOS y-offset (sign flip: font↑ = screen↓)
+            #              - FT bearing (bitmap_top pixels above baseline)
+            gx = cursor_x + ox + ft.glyph.bitmap_left
+            gy = baseline_y - oy - ft.glyph.bitmap_top
+
+            for row in range(bm.rows):
+                for col in range(bm.width):
+                    if bm.buffer[row * bm.pitch + col] > 127:
+                        px, py = gx + col, gy + row
+                        if 0 <= px < img.width and 0 <= py < img.height:
+                            pixels[px, py] = 0   # black on white
+
+        cursor_x += pos.x_advance >> 6
+
+
+def render_dua(text: str, output_path: Path) -> int:
+    """Render Arabic text onto 800×480 1-bit BMP. Returns font size used."""
+    lines, size = find_best_fit(text)
+    font     = _hb_font(size)
+    ft       = _ft_face(size)
+    lh       = _line_height(size)
+    ascender = ft.size.ascender >> 6
+
+    total_h = len(lines) * lh - LINE_GAP
     start_y = MARGIN_Y + (USABLE_H - total_h) // 2
 
+    img = Image.new("1", (DISPLAY_W, DISPLAY_H), 1)   # white background
+
     for i, line in enumerate(lines):
-        line_y = start_y + i * line_h
-        bbox = font.getbbox(line)
-        line_w = bbox[2] - bbox[0]
-        # Horizontally center each line
-        line_x = (DISPLAY_W - line_w) // 2
-        draw.text((line_x, line_y), line, font=font, fill=0)
+        baseline_y = start_y + i * lh + ascender
+        render_line(img, line, font, ft, DISPLAY_W // 2, baseline_y)
 
     img.save(str(output_path))
-    return font_size
+    return size
 
+
+# ── Entry point ────────────────────────────────────────────────────────────────
 
 def main() -> None:
     print(f"Reading: {INPUT_PATH}")
@@ -156,31 +236,26 @@ def main() -> None:
         entries = json.load(f)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    total = len(entries)
-    print(f"Rendering {total} dua images to {OUTPUT_DIR} ...")
+    print(f"Rendering {len(entries)} dua images → {OUTPUT_DIR}")
     print()
 
     for idx, entry in enumerate(entries):
-        arabic_raw = entry.get("arabic", "")
-        if not arabic_raw:
+        arabic = entry.get("arabic", "")
+        if not arabic:
             print(f"  [{idx:03d}] SKIP — no arabic text")
             continue
 
-        arabic_shaped = prepare_arabic(arabic_raw)
         output_path = OUTPUT_DIR / f"dua_{idx:03d}.bmp"
+        size = render_dua(arabic, output_path)
+        kb   = output_path.stat().st_size / 1024
+        print(f"  [{idx:03d}] {size:3d}pt  {kb:.1f} KB  — {entry.get('title', '')[:50]}")
 
-        font_size = render_dua(arabic_shaped, output_path)
-        file_kb = output_path.stat().st_size / 1024
-        print(f"  [{idx:03d}] font={font_size:3d}pt  {file_kb:.1f} KB  — {entry.get('title', '')[:50]}")
-
-    # Summary
     bmp_files = list(OUTPUT_DIR.glob("dua_*.bmp"))
-    total_kb = sum(f.stat().st_size for f in bmp_files) / 1024
+    total_kb  = sum(f.stat().st_size for f in bmp_files) / 1024
     print()
-    print(f"Done. {len(bmp_files)} images, {total_kb:.0f} KB total ({total_kb/1024:.1f} MB)")
+    print(f"Done. {len(bmp_files)} images, {total_kb:.0f} KB ({total_kb/1024:.1f} MB)")
     print()
-    print("Next step: flash the filesystem to ESP32:")
+    print("Next step: flash the filesystem to the ESP32:")
     print("  cd ../esp32-firmware && pio run -t uploadfs")
 
 
