@@ -275,10 +275,10 @@ void setup() {
     Serial.println("Wakeup: button press");
 
     if (currentPage == 0) {
+      // Pick a new random dua every time we enter the dua page
+      duaIndex = esp_random() % NUM_DUAS;
       currentPage = 1;
     } else {
-      // Leaving dua page: advance index so the next visit shows a fresh dua
-      duaIndex = (duaIndex + 1) % NUM_DUAS;
       currentPage = 0;
     }
 
