@@ -27,9 +27,7 @@ deep sleep. A physical button (GPIO 2) lets the user toggle between two pages wi
 │   ├── rtc_data.h          # RTC_DATA_ATTR structs — survives deep sleep
 │   └── secrets.h           # WiFi credentials — GITIGNORED, never commit
 ├── data/
-│   └── dua-dhikr.json      # Arabic + pre-shaped text + translations
-├── scripts/
-│   └── arabic_shaper.py    # Offline: shapes Arabic text into dua-dhikr.json
+│   └── dua-dhikr.json      # Single source of truth: Arabic + translation
 ├── platformio.ini
 ```
 
@@ -178,14 +176,15 @@ display.setCursor(20, y + 36);
 
 ### Arabic Text
 
-Arabic requires offline reshaping — the ESP32 cannot do ligature shaping at runtime.
+Arabic shaping (ligatures + GPOS tashkeel placement) is done at render time by
+HarfBuzz — the ESP32 never shapes text; it only displays pre-rendered BMPs.
 
-1. Edit the `arabic` field in `dua-dhikr.json`.
-2. Run `python scripts/arabic_shaper.py` — this writes the shaped result into `arabic_shaped`.
+1. Edit the `arabic` and/or `translation` field in `data/dua-dhikr.json` (single source of truth).
+2. Run `cd data-collection && python render_dua_images.py` — HarfBuzz shapes + FreeType rasterises each dua into `esp32-firmware/data/dua_NNN.bmp`.
 3. Flash the filesystem: `pio run -t uploadfs`.
-4. In firmware, always render from `arabic_shaped`, never from `arabic`.
+4. Firmware renders only the BMP images — it never reads the JSON at runtime.
 
-Font for Arabic: `u8g2_font_unifont_t_arabic` via U8g2_for_Adafruit_GFX.
+Fonts: `NotoNaskhArabic-Bold.ttf` (Arabic), `NotoSans-Regular.ttf` (translation), in `data-collection/fonts/`.
 
 ---
 
@@ -282,5 +281,5 @@ Deep sleep makes the serial monitor disconnect on each sleep cycle. This is expe
   instead.
 - **Do not commit `secrets.h`** — verify `.gitignore` covers it before any git operation.
 - **Do not use `double`** — the ESP32-S3 FPU is 32-bit; use `float`.
-- **Do not resize or reformat `dua-dhikr.json` manually** — always go through `arabic_shaper.py`
-  to keep `arabic_shaped` in sync.
+- **After editing `dua-dhikr.json`** — re-run `render_dua_images.py` to regenerate the
+  affected BMPs, then `pio run -t uploadfs`.

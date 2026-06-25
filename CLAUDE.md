@@ -21,19 +21,17 @@ A wall-mounted e-ink display on an ESP32-S3 that shows Islamic prayer times, liv
 │   │   ├── page_dua.cpp/.h       # Page 1: loads dua_NNN.bmp from LittleFS, renders via PSRAM
 │   │   └── secrets.h       # GITIGNORED — defines WIFI_SSID / WIFI_PASSWORD
 │   ├── data/               # LittleFS filesystem image (flashed separately)
-│   │   ├── dua_000.bmp … dua_083.bmp  # Pre-rendered 800×480 1-bit BMPs
-│   │   └── dua-dhikr.json  # Dua text (Arabic + shaped + translations)
+│   │   └── dua_000.bmp … dua_044.bmp  # Pre-rendered 800×480 1-bit BMPs (Arabic + translation)
 │   ├── partitions.csv      # Custom 16MB layout: 4MB app + ~12MB LittleFS
 │   └── platformio.ini      # Board: esp32-s3-devkitm-1, 16MB flash, LittleFS
 ├── data-collection/        # Python data pipeline
 │   ├── aggregator.py       # Orchestrates all extractors → output/display_data.json
 │   ├── extract_weather.py  # OpenWeatherMap API fetch
 │   ├── extract_prayer_times.py  # GITIGNORED — private scraper using PRAYER_TIMES_URL
-│   ├── render_dua_images.py     # Renders Arabic dua text → BMP files in esp32-firmware/data/
-│   ├── arabic_shaper.py    # Shapes Arabic ligatures into dua-dhikr.json arabic_shaped field
-│   └── fonts/NotoNaskhArabic-Bold.ttf
+│   ├── render_dua_images.py     # Shapes (HarfBuzz) + renders Arabic & translation → BMPs in esp32-firmware/data/
+│   └── fonts/              # NotoNaskhArabic-Bold.ttf (Arabic), NotoSans-Regular.ttf (translation)
 ├── data/
-│   └── dua-dhikr.json      # Source of truth for dua content (repo root copy)
+│   └── dua-dhikr.json      # Single source of truth for dua content (Arabic + translation)
 └── .github/workflows/update-data.yml  # Daily GitHub Actions: runs aggregator, commits JSON
 ```
 
@@ -87,13 +85,14 @@ Structs declared `RTC_DATA_ATTR` in `main.cpp` survive deep sleep (RTC SRAM, 8KB
 
 ## Arabic Text Pipeline
 
-Arabic requires offline ligature shaping — the ESP32 cannot do it at runtime.
+Arabic shaping (ligatures + GPOS tashkeel mark positioning) happens at render time
+via HarfBuzz — there is no separate offline shaping step, and the ESP32 never
+shapes text itself.
 
-1. Edit `arabic` field in `data/dua-dhikr.json`
-2. `cd data-collection && python arabic_shaper.py` — writes `arabic_shaped` field
-3. `python render_dua_images.py` — generates `esp32-firmware/data/dua_000.bmp … dua_083.bmp`
-4. `cd esp32-firmware && pio run -t uploadfs` — flashes LittleFS
-5. Firmware reads from `arabic_shaped` and from the BMP files — never from `arabic` directly
+1. Edit the `arabic` and/or `translation` field in `data/dua-dhikr.json` (the single source of truth)
+2. `cd data-collection && python render_dua_images.py` — HarfBuzz shapes (GSUB+GPOS) and FreeType rasterises each entry into `esp32-firmware/data/dua_000.bmp … dua_NNN.bmp`
+3. `cd esp32-firmware && pio run -t uploadfs` — flashes LittleFS
+4. Firmware reads only the BMP files — never the JSON at runtime
 
 ## PlatformIO Commands
 
@@ -104,7 +103,7 @@ pio run
 # Build + flash firmware
 pio run -t upload
 
-# Flash LittleFS filesystem (BMP images + dua-dhikr.json)
+# Flash LittleFS filesystem (pre-rendered dua BMP images)
 pio run -t uploadfs
 
 # Monitor serial output (disconnects on each sleep cycle — expected)
