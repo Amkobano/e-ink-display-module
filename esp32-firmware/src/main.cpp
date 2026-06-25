@@ -25,6 +25,13 @@
 void syncTime();
 unsigned long calculateSleepSeconds();
 void goToSleep();
+void armWakeSources(unsigned long sleepSeconds);
+void finishAndSleep();
+void doCloudRefresh();
+bool triggerWorkflow();
+String fetchTimestamp();
+void ledOff();
+void ledPulseDelay(uint32_t totalMs);
 
 // ============================================
 // CONFIGURATION
@@ -63,6 +70,18 @@ RTC_DATA_ATTR static time_t   nextWakeTime = 0;   // epoch of next scheduled ref
 // ----------------------------------------
 
 #define NUM_DUAS 45   // total pre-rendered BMP images
+
+// --- On-demand refresh: trigger the GitHub Actions workflow via its REST API ---
+const char *GH_API_HOST      = "api.github.com";
+const char *GH_OWNER_REPO    = "Amkobano/e-ink-display-module";
+const char *GH_WORKFLOW_FILE = "update-data.yml";
+const char *GH_REF           = "main";
+#ifndef GITHUB_TOKEN
+// Define in secrets.h: a fine-grained PAT scoped to THIS repo, "Actions: read/write".
+#define GITHUB_TOKEN ""
+#endif
+#define REFRESH_POLL_TIMEOUT_S  90   // give up waiting for fresh data after this long
+#define REFRESH_POLL_INTERVAL_S 5    // re-check GitHub this often while waiting
 
 String errorMsg = "";
 
@@ -235,6 +254,23 @@ unsigned long calculateSleepSeconds() {
   return sleepSeconds;
 }
 
+// Arm the timer + both buttons as deep-sleep wake sources.
+// EXT1 ANY_LOW wakes when EITHER button pulls its GPIO LOW. rtc_gpio_init +
+// direction + pullup must be set on each pin before ext1 enable on the ESP32-S3.
+void armWakeSources(unsigned long sleepSeconds) {
+  esp_sleep_enable_timer_wakeup((uint64_t)sleepSeconds * 1000000ULL);
+
+  const gpio_num_t pins[] = {(gpio_num_t)BUTTON_PIN, (gpio_num_t)REFRESH_BUTTON_PIN};
+  for (gpio_num_t pin : pins) {
+    rtc_gpio_init(pin);
+    rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY);
+    rtc_gpio_pullup_en(pin);
+    rtc_gpio_pulldown_dis(pin);
+  }
+  esp_sleep_enable_ext1_wakeup((1ULL << BUTTON_PIN) | (1ULL << REFRESH_BUTTON_PIN),
+                               ESP_EXT1_WAKEUP_ANY_LOW);
+}
+
 void goToSleep() {
   Serial.println("Preparing for deep sleep...");
 
@@ -250,15 +286,126 @@ void goToSleep() {
   display.hibernate();
 
   Serial.println("Going to deep sleep...");
-  esp_sleep_enable_timer_wakeup(sleepSeconds * 1000000ULL);
-  // EXT1 ANY_LOW: wakes when GPIO2 is pulled LOW by the button.
-  // rtc_gpio_init + direction must be set before ext1 enable on ESP32-S3.
-  rtc_gpio_init((gpio_num_t)BUTTON_PIN);
-  rtc_gpio_set_direction((gpio_num_t)BUTTON_PIN, RTC_GPIO_MODE_INPUT_ONLY);
-  rtc_gpio_pullup_en((gpio_num_t)BUTTON_PIN);
-  rtc_gpio_pulldown_dis((gpio_num_t)BUTTON_PIN);
-  esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
+  armWakeSources(sleepSeconds);
   esp_deep_sleep_start();
+}
+
+// Sleep without re-syncing time (used by button wakes, where time() is already
+// set or will fall back). Always recalculates the duration so a near-zero clock
+// after a button wake can't overflow the 48-bit RTC timer.
+void finishAndSleep() {
+  display.hibernate();
+  unsigned long sleepSecs = calculateSleepSeconds();
+  nextWakeTime = time(nullptr) + sleepSecs;
+  Serial.println("Going to deep sleep...");
+  armWakeSources(sleepSecs);
+  esp_deep_sleep_start();
+}
+
+// --- Onboard RGB LED (WS2812 on GPIO48) used as a "refreshing" indicator ---
+void ledOff() { neopixelWrite(LED_PIN, 0, 0, 0); }
+
+void ledPulseDelay(uint32_t totalMs) {
+  uint32_t elapsed = 0;
+  bool on = false;
+  while (elapsed < totalMs) {
+    on = !on;
+    neopixelWrite(LED_PIN, 0, 0, on ? 40 : 0);   // dim blue pulse
+    delay(250);
+    elapsed += 250;
+  }
+}
+
+// Fetch just the "timestamp" field of the committed JSON (with a unique
+// cache-buster) so we can detect when a fresh workflow run has published data.
+String fetchTimestamp() {
+  String url = String(DATA_URL) + "?t=" + String((uint32_t)time(nullptr)) + String(millis());
+  WiFiClientSecure client;
+  client.setInsecure();   // public read-only content, same as the daily fetch
+  HTTPClient http;
+  http.setTimeout(15000);
+  if (!http.begin(client, url)) return "";
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    http.end();
+    return "";
+  }
+  String payload = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) return "";
+  return String((const char *)(doc["timestamp"] | ""));
+}
+
+// POST a workflow_dispatch event to GitHub Actions. Returns true on HTTP 204.
+bool triggerWorkflow() {
+  if (strlen(GITHUB_TOKEN) == 0) {
+    Serial.println("GITHUB_TOKEN not set — cannot trigger workflow");
+    return false;
+  }
+
+  WiFiClientSecure client;
+#ifdef GITHUB_API_ROOT_CA
+  client.setCACert(GITHUB_API_ROOT_CA);   // verify GitHub's TLS cert (recommended)
+#else
+  client.setInsecure();                    // define GITHUB_API_ROOT_CA in secrets.h to verify
+#endif
+
+  String url = String("https://") + GH_API_HOST + "/repos/" + GH_OWNER_REPO +
+               "/actions/workflows/" + GH_WORKFLOW_FILE + "/dispatches";
+
+  HTTPClient http;
+  http.setTimeout(15000);
+  if (!http.begin(client, url)) return false;
+  http.addHeader("Authorization", String("Bearer ") + GITHUB_TOKEN);
+  http.addHeader("Accept", "application/vnd.github+json");
+  http.addHeader("X-GitHub-Api-Version", "2022-11-28");
+  http.addHeader("User-Agent", "esp32-eink-display");   // GitHub rejects requests with no UA
+  http.addHeader("Content-Type", "application/json");
+
+  String body = String("{\"ref\":\"") + GH_REF + "\"}";
+  int code = http.POST(body);
+  Serial.printf("workflow_dispatch -> HTTP %d\n", code);
+  http.end();
+  return code == 204;   // GitHub returns 204 No Content on success
+}
+
+// Refresh button flow: keep the current screen visible, trigger a fresh workflow
+// run, blink the LED while polling until new data is published (or timeout),
+// then fetch + display it. WiFi is turned off before the display refresh.
+void doCloudRefresh() {
+  Serial.println("On-demand refresh requested");
+
+  if (!connectWiFi()) {
+    displayError("WiFi failed");
+    return;
+  }
+  syncTime();
+
+  String before = fetchTimestamp();
+  if (triggerWorkflow()) {
+    uint32_t waited = 0;
+    String latest = before;
+    while (latest == before && waited < REFRESH_POLL_TIMEOUT_S * 1000UL) {
+      ledPulseDelay(REFRESH_POLL_INTERVAL_S * 1000);
+      waited += REFRESH_POLL_INTERVAL_S * 1000;
+      latest = fetchTimestamp();
+      Serial.printf("poll: before='%s' latest='%s'\n", before.c_str(), latest.c_str());
+    }
+    if (latest == before) Serial.println("Refresh timed out; showing latest available data");
+  } else {
+    Serial.println("Trigger failed; showing latest available data");
+  }
+  ledOff();
+
+  if (fetchPrayerTimes()) {
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    displayPrayerTimes(prayerTimes, weatherData, forecast);
+  } else {
+    displayError(errorMsg.c_str());
+  }
 }
 
 void setup() {
@@ -271,8 +418,19 @@ void setup() {
   display.init(115200, true, 20, false);
 
   if (cause == ESP_SLEEP_WAKEUP_EXT1) {
-    // ---- Button press: toggle page, no WiFi needed ----
-    Serial.println("Wakeup: button press");
+    // Which button pulled its line LOW? (bitmask of the triggering pins)
+    uint64_t ext1 = esp_sleep_get_ext1_wakeup_status();
+
+    if (ext1 & (1ULL << REFRESH_BUTTON_PIN)) {
+      // ---- Refresh button: trigger workflow, wait for new data, display ----
+      Serial.println("Wakeup: refresh button");
+      currentPage = 0;
+      doCloudRefresh();
+      finishAndSleep();   // never returns
+    }
+
+    // ---- Page toggle button (GPIO2): no WiFi needed ----
+    Serial.println("Wakeup: page button");
 
     if (currentPage == 0) {
       // Pick a new random dua every time we enter the dua page
@@ -290,20 +448,7 @@ void setup() {
       displayDua(duaIndex);
     }
 
-    // Re-enable both wakeup sources.
-    // Always recalculate sleep duration: time() can be near-zero after button
-    // wake (timezone not yet re-applied), making epoch arithmetic overflow the
-    // 48-bit RTC timer and cause an immediate spurious timer wakeup.
-    display.hibernate();
-    unsigned long sleepSecs = calculateSleepSeconds();
-    nextWakeTime = time(nullptr) + sleepSecs;
-    esp_sleep_enable_timer_wakeup(sleepSecs * 1000000ULL);
-    rtc_gpio_init((gpio_num_t)BUTTON_PIN);
-    rtc_gpio_set_direction((gpio_num_t)BUTTON_PIN, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pullup_en((gpio_num_t)BUTTON_PIN);
-    rtc_gpio_pulldown_dis((gpio_num_t)BUTTON_PIN);
-    esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
-    esp_deep_sleep_start();
+    finishAndSleep();   // never returns
 
   } else {
     // ---- Timer wakeup or first boot: fetch fresh data ----
