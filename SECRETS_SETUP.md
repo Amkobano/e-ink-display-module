@@ -72,6 +72,55 @@ Step 5: Commit only the JSON output
 ✅ **Portfolio Friendly:** You can show this repo to employers  
 ✅ **Open Source:** Others can use weather/display parts without prayer times  
 
+## Security: The "Refresh" Button's GitHub Token
+
+> This applies to the optional on-demand **refresh button** — a physical button
+> that makes the device fetch the very latest data by triggering the GitHub
+> Actions workflow itself. Here's the security picture in plain language.
+
+### Why a token is needed
+The refresh button tells GitHub: *"run the data update for this project now."*
+GitHub won't do that for just anyone, so the device has to prove it's allowed —
+it does that with a small **key** (a token) stored inside the device.
+
+### The risks, in plain words
+- 🔑 **The key lives inside the device.** If someone physically took the device
+  apart, they could copy the key. But this key is **almost worthless** — all it
+  can do is press "refresh data" on this one project.
+- 📶 **The device also holds your WiFi password** (this is already true today,
+  with or without the button). That's the more sensitive item — keeping the
+  device **indoors** protects it.
+- 📤 **The classic mistake is uploading a secret to the internet.** Your secret
+  file is already ignored by git, so this won't happen by accident — just don't
+  manually upload `secrets.h` or the built firmware binary.
+- 👤 **Worst case is someone breaking into your GitHub *account*** — that has
+  nothing to do with the device; it's about protecting your login.
+
+### What someone could (and could NOT) do with a stolen key
+**Could:** trigger your data-refresh workflow over and over — annoying, but it's
+free on a public repo and you can shut it off instantly.
+**Could NOT:** read or change your code, push commits, reach any other repo, read
+your other secrets (weather/prayer URLs), or get into your account.
+
+### How to reduce the risk (easy wins)
+- ✅ **Turn on 2-factor authentication (2FA) on GitHub** — the single biggest win.
+- ✅ **Use a "limited" key:** a fine-grained Personal Access Token scoped to **this
+  repo only**, with **"Actions: read and write"** permission and nothing else, and
+  a **90-day expiry**. Even if copied, it's harmless and dies on its own.
+- ✅ **Make the device verify it's really talking to GitHub** (check the TLS
+  certificate) when it sends the key — stops a sneaky same-WiFi trick.
+- ✅ **Never upload** `secrets.h` or the compiled firmware binary.
+- ✅ **Keep the device indoors.**
+
+### If a key is ever exposed
+Go to GitHub → **Settings → Developer settings → Personal access tokens**, and
+**revoke** it — one click, instant. Then generate a new one. The 90-day expiry
+also closes the window automatically even if you forget.
+
+> **Bottom line:** the refresh key is low-risk and easy to cancel. The two things
+> that matter most aren't even on the device — **turn on GitHub 2FA** and **don't
+> upload secrets**.
+
 ## Testing Your Setup
 
 ### Before Pushing to GitHub:
