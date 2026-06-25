@@ -19,6 +19,20 @@ if env_path.exists():
                 os.environ[key] = value
 
 
+def load_previous_output(output_path = None) -> Dict[str, Any]:
+    """
+    Load the previously committed display_data.json so we can fall back to its
+    values when a fresh extraction fails. Returns {} if missing or unreadable.
+    """
+    if output_path is None:
+        output_path = Path(__file__).parent / "output" / "display_data.json"
+    try:
+        with open(output_path, encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+
+
 def aggregate_data(location: str = None) -> Dict[str, Any]:
     """
     Aggregate all data sources into a single JSON structure.
@@ -58,8 +72,18 @@ def aggregate_data(location: str = None) -> Dict[str, Any]:
             aggregated_data['prayer_times'] = prayer_times
             print("✓ Prayer times extracted successfully")
         else:
+            # Fetch failed — reuse last-known-good prayer times so a single bad
+            # run doesn't blank the display. Times drift only ~1 min/day, so a
+            # stale day is far better than nothing.
             aggregated_data['status'] = 'partial'
-            print("✗ Failed to extract prayer times")
+            previous = load_previous_output()
+            prev_prayer_times = previous.get('prayer_times') or {}
+            if prev_prayer_times:
+                aggregated_data['prayer_times'] = prev_prayer_times
+                print(f"⚠ Using last-known-good prayer times from "
+                      f"{previous.get('timestamp', 'unknown date')}")
+            else:
+                print("✗ Failed to extract prayer times (no previous data to fall back on)")
     else:
         print("⊘ Skipping prayer times (module not available)")
     
