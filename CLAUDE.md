@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A wall-mounted e-ink display on an ESP32-S3 that shows Islamic prayer times, live weather, and a daily Dua/Dhikr. The device wakes once per day at 01:00 CET via WiFi to fetch fresh data from GitHub, then enters deep sleep. A physical button (GPIO 2) toggles between pages without triggering a WiFi wake.
+A wall-mounted e-ink display on an ESP32-S3 that shows Islamic prayer times, live weather, and a daily Dua/Dhikr. The device wakes once per day at 00:05 CET, triggers the GitHub Actions workflow itself (via `workflow_dispatch`), waits for the fresh data, displays it, then enters deep sleep. The daily cron in the workflow is a backup for when the device is off/offline. A physical button (GPIO 2) toggles between pages without triggering a WiFi wake.
 
 **Critical constraint:** There is no `loop()`. All logic runs in `setup()` and ends in `esp_deep_sleep_start()`. Each wake-up is a short-lived program — not a running process.
 
@@ -43,22 +43,24 @@ esp_reset / timer / button (GPIO 2)
         ▼
     setup()
         │
-        ├─ ESP_SLEEP_WAKEUP_EXT0 (button)
-        │       Toggle currentPage (0 → 1 → next dua → … → 0)
+        ├─ ESP_SLEEP_WAKEUP_EXT1 (GPIO 2 button)
+        │       Toggle currentPage (0 → random dua → 0 → …)
         │       Render from RTC cache — NO WiFi, NO NTP
-        │       Re-arm timer using stored nextWakeTime epoch
+        │       finishAndSleep() — re-arm via calculateSleepSeconds()
         │
         └─ ESP_SLEEP_WAKEUP_TIMER or first boot
                 currentPage = 0
-                connectWiFi()
-                syncTime() → fetchPrayerTimes() (parses JSON, fills RTC structs)
-                displayPrayerTimes()
+                doCloudRefresh():
+                    connectWiFi() → syncTime()
+                    triggerWorkflow()  (POST workflow_dispatch to GitHub)
+                    poll fetchTimestamp() until data changes (LED pulses, 90s timeout)
+                    fetchPrayerTimes() → WiFi off → displayPrayerTimes()
                 goToSleep() → syncTime(), calculateSleepSeconds(), store nextWakeTime
         │
         ▼
     display.hibernate()
     esp_sleep_enable_timer_wakeup(...)
-    esp_sleep_enable_ext0_wakeup(GPIO 2, LOW)
+    esp_sleep_enable_ext1_wakeup(1<<GPIO 2, ANY_LOW)
     esp_deep_sleep_start()
 ```
 

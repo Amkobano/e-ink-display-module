@@ -8,14 +8,15 @@ permissions:
 
 # WHEN should this run?
 on:
-  # Schedule: Run automatically every day
+  # BACKUP schedule. The ESP32 is the PRIMARY trigger: on its 00:05 CET wake it
+  # calls workflow_dispatch (below), which runs promptly and isn't subject to
+  # cron's queueing delays. This cron is a safety net for when the device is
+  # off/offline or its token fails, so the repo data still refreshes daily.
+  # Runs at 23:00 UTC = 00:00 CET (start of the new day; may be delayed by GitHub).
   schedule:
-    # Run at 23:00 UTC = 00:00 CET (midnight = start of new day).
-    # Prayer times fetched will be for the new day.
-    # GitHub delays can push this to ~01:00 CET at worst.
     - cron: '0 23 * * *'
-  
-  # Also allow manual trigger (useful for testing)
+
+  # PRIMARY trigger: invoked by the ESP32 (and usable for manual testing).
   workflow_dispatch:
 
 # WHAT should it do?

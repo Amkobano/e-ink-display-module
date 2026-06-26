@@ -72,16 +72,17 @@ Step 5: Commit only the JSON output
 ✅ **Portfolio Friendly:** You can show this repo to employers  
 ✅ **Open Source:** Others can use weather/display parts without prayer times  
 
-## Security: The "Refresh" Button's GitHub Token
+## Security: The Daily-Refresh GitHub Token
 
-> This applies to the optional on-demand **refresh button** — a physical button
-> that makes the device fetch the very latest data by triggering the GitHub
-> Actions workflow itself. Here's the security picture in plain language.
+> The device refreshes its data automatically: on its daily wake it **triggers the
+> GitHub Actions workflow itself** (instead of waiting for the delay-prone cron
+> schedule) and then displays the fresh result. To do that it needs a GitHub token.
+> Here's the security picture in plain language.
 
 ### Why a token is needed
-The refresh button tells GitHub: *"run the data update for this project now."*
-GitHub won't do that for just anyone, so the device has to prove it's allowed —
-it does that with a small **key** (a token) stored inside the device.
+On each daily wake the device tells GitHub: *"run the data update for this project
+now."* GitHub won't do that for just anyone, so the device has to prove it's allowed
+— it does that with a small **key** (a token) stored inside the device.
 
 ### The risks, in plain words
 - 🔑 **The key lives inside the device.** If someone physically took the device

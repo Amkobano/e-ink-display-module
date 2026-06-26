@@ -23,6 +23,5 @@
 #define LED_PIN     48  // Built-in LED on most ESP32-S3 boards
 
 #define BUTTON_PIN  2   // Page toggle button — RTC-capable GPIO for ext1 wakeup
-#define REFRESH_BUTTON_PIN 4  // On-demand data refresh button — RTC-capable GPIO for ext1 wakeup
 
 #endif

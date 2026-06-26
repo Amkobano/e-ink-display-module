@@ -41,10 +41,11 @@ const char *DATA_URL =
     "https://raw.githubusercontent.com/Amkobano/e-ink-display-module/main/"
     "data-collection/output/display_data.json";
 
-// Wake time: 01:00 CET - safely after workflow completes (even with GitHub
-// delays)
-#define WAKE_HOUR 1
-#define WAKE_MINUTE 0
+// Wake time: 00:05 CET. The device triggers the workflow itself on this wake,
+// so it no longer needs to wait for the (delay-prone) cron run. The 5-minute
+// margin guarantees the date has rolled over to the new day before the run.
+#define WAKE_HOUR 0
+#define WAKE_MINUTE 5
 
 // Timezone: Germany (CET/CEST with automatic DST)
 const char *NTP_SERVER = "pool.ntp.org";
@@ -260,15 +261,11 @@ unsigned long calculateSleepSeconds() {
 void armWakeSources(unsigned long sleepSeconds) {
   esp_sleep_enable_timer_wakeup((uint64_t)sleepSeconds * 1000000ULL);
 
-  const gpio_num_t pins[] = {(gpio_num_t)BUTTON_PIN, (gpio_num_t)REFRESH_BUTTON_PIN};
-  for (gpio_num_t pin : pins) {
-    rtc_gpio_init(pin);
-    rtc_gpio_set_direction(pin, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pullup_en(pin);
-    rtc_gpio_pulldown_dis(pin);
-  }
-  esp_sleep_enable_ext1_wakeup((1ULL << BUTTON_PIN) | (1ULL << REFRESH_BUTTON_PIN),
-                               ESP_EXT1_WAKEUP_ANY_LOW);
+  rtc_gpio_init((gpio_num_t)BUTTON_PIN);
+  rtc_gpio_set_direction((gpio_num_t)BUTTON_PIN, RTC_GPIO_MODE_INPUT_ONLY);
+  rtc_gpio_pullup_en((gpio_num_t)BUTTON_PIN);
+  rtc_gpio_pulldown_dis((gpio_num_t)BUTTON_PIN);
+  esp_sleep_enable_ext1_wakeup(1ULL << BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_LOW);
 }
 
 void goToSleep() {
@@ -371,11 +368,13 @@ bool triggerWorkflow() {
   return code == 204;   // GitHub returns 204 No Content on success
 }
 
-// Refresh button flow: keep the current screen visible, trigger a fresh workflow
+// Daily refresh flow: keep the current screen visible, trigger a fresh workflow
 // run, blink the LED while polling until new data is published (or timeout),
 // then fetch + display it. WiFi is turned off before the display refresh.
+// Falls back to the latest committed data (kept fresh by the cron backup) if the
+// trigger or poll fails.
 void doCloudRefresh() {
-  Serial.println("On-demand refresh requested");
+  Serial.println("Cloud refresh requested");
 
   if (!connectWiFi()) {
     displayError("WiFi failed");
@@ -418,17 +417,6 @@ void setup() {
   display.init(115200, true, 20, false);
 
   if (cause == ESP_SLEEP_WAKEUP_EXT1) {
-    // Which button pulled its line LOW? (bitmask of the triggering pins)
-    uint64_t ext1 = esp_sleep_get_ext1_wakeup_status();
-
-    if (ext1 & (1ULL << REFRESH_BUTTON_PIN)) {
-      // ---- Refresh button: trigger workflow, wait for new data, display ----
-      Serial.println("Wakeup: refresh button");
-      currentPage = 0;
-      doCloudRefresh();
-      finishAndSleep();   // never returns
-    }
-
     // ---- Page toggle button (GPIO2): no WiFi needed ----
     Serial.println("Wakeup: page button");
 
@@ -451,22 +439,14 @@ void setup() {
     finishAndSleep();   // never returns
 
   } else {
-    // ---- Timer wakeup or first boot: fetch fresh data ----
+    // ---- Timer wakeup or first boot: trigger workflow + fetch fresh data ----
+    // workflow_dispatch runs promptly (unlike the delay-prone cron schedule), so
+    // the device gets up-to-date data on its own wake instead of relying on cron
+    // having finished in time.
     Serial.println("Wakeup: timer / first boot");
     currentPage = 0;
 
-    clearDisplay();
-
-    if (connectWiFi() && fetchPrayerTimes()) {
-      // Shut down WiFi before the display refresh so the radio's ~200mA draw
-      // doesn't overlap with the display boost converter's peak current demand.
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
-      displayPrayerTimes(prayerTimes, weatherData, forecast);
-    } else {
-      displayError(errorMsg.c_str());
-    }
-
+    doCloudRefresh();
     goToSleep();
   }
 }

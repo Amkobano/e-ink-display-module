@@ -37,73 +37,58 @@ ESP32-S3 DevKit                  Waveshare 7.3" Display
 └──────────────────┘            └─────────────────────┘
 ```
 
-## Push Buttons (GPIO 2 + GPIO 4)
+## Push Button (GPIO 2)
 
-Two momentary push buttons wake the device from deep sleep:
+One momentary push button wakes the device from deep sleep to toggle the page.
+(Data refresh is fully automatic — the device triggers the update itself on its
+daily wake — so no refresh button is needed.)
 
 | Button | GPIO | Function | Wake source |
 |--------|------|----------|-------------|
 | Page button | GPIO 2 | Toggle prayer ⇄ dua page (no WiFi) | EXT1, active-LOW |
-| Refresh button | GPIO 4 | Trigger GitHub workflow + fetch newest data | EXT1, active-LOW |
 
-Both buttons are **active-LOW**: each pin idles **HIGH** (held up by a pull-up
-resistor) and is driven **LOW** when its button is pressed. The firmware wakes on
+The button is **active-LOW**: the pin idles **HIGH** (held up by a pull-up
+resistor) and is driven **LOW** when the button is pressed. The firmware wakes on
 that LOW level (`ESP_EXT1_WAKEUP_ANY_LOW`).
 
-### Schematic (with pull-up resistors)
-
-```text
-   3V3 ●──┬────────────────────┬────────────
-          │                    │
-        [ R1 ]               [ R2 ]
-        10 kΩ                10 kΩ
-          │                    │
- GPIO 2 ●─┤                    ├─● GPIO 4
-          │                    │
-        (BTN1)               (BTN2)
-       page tgl              refresh
-          │                    │
-   GND ●──┴────────────────────┴────────────
-```
-
-For **each** button the topology is the same:
+### Schematic (with pull-up resistor)
 
 ```text
    3V3
     │
   [ 10 kΩ ]      ← pull-up resistor (pin idles HIGH)
     │
-    ├─────────●  GPIO (2 or 4)   → to ESP32
+    ├─────────●  GPIO 2   → to ESP32
     │
   (button)       ← momentary push button
     │
    GND           ← pressing connects the pin to GND (reads LOW)
 ```
 
-### Wiring steps (repeat per button)
+### Wiring steps
 
 1. **3V3** → one leg of a **10 kΩ** resistor.
-2. Other leg of the resistor → the **GPIO pin** (GPIO 2 or GPIO 4). This junction is the signal.
-3. Same **GPIO pin** → one terminal of the **push button**.
+2. Other leg of the resistor → **GPIO 2**. This junction is the signal.
+3. **GPIO 2** → one terminal of the **push button**.
 4. Other terminal of the push button → **GND**.
 
 ### Notes
 
-- **Internal pull-ups are also enabled in firmware** (`rtc_gpio_pullup_en`), so the
-  buttons will function even without the external resistors. The external **10 kΩ**
-  pull-ups are **recommended** for a cleaner, more reliable signal — especially for
+- **The internal pull-up is also enabled in firmware** (`rtc_gpio_pullup_en`), so the
+  button will function even without the external resistor. The external **10 kΩ**
+  pull-up is **recommended** for a cleaner, more reliable signal — especially for
   dependable wake-from-deep-sleep and noise immunity on longer wires.
-- **Optional debounce:** a **100 nF** capacitor from the GPIO pin to GND suppresses
+- **Optional debounce:** a **100 nF** capacitor from GPIO 2 to GND suppresses
   contact bounce (reduces accidental double-triggers). Not required for wake.
 - Use any standard **normally-open** tactile push button.
-- ⚠️ Use **GPIO 2** and **GPIO 4** only — both are RTC-capable (required for EXT1
-  deep-sleep wake) and avoid the display/strapping pins.
+- ⚠️ Use **GPIO 2** — it is RTC-capable (required for EXT1 deep-sleep wake) and
+  avoids the display/strapping pins.
 
 ### Parts
 
-- 2× momentary push buttons (normally open)
-- 2× 10 kΩ resistors (pull-ups)
-- Optional: 2× 100 nF capacitors (debounce)
+- 1× momentary push button (normally open)
+- 1× 10 kΩ resistor (pull-up)
+- Optional: 1× 100 nF capacitor (debounce)
 - Jumper wires
 
 ## Connection Steps
