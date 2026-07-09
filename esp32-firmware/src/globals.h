@@ -5,7 +5,9 @@
 #include "pins.h"
 
 // Display and font objects defined in main.cpp, shared across all page files.
-extern GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT> display;
+// Panel: Waveshare 7.3" (F) 7-color ACeP — the GDEP073E01 waveform is the correct
+// match (GDEY073D46 only latched marginally, causing faint/intermittent images).
+extern GxEPD2_7C<GxEPD2_730c_GDEP073E01, GxEPD2_730c_GDEP073E01::HEIGHT> display;
 extern U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
 // Shared data structures (also used as RTC_DATA_ATTR in main.cpp)

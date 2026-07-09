@@ -79,7 +79,7 @@ Structs declared `RTC_DATA_ATTR` in `main.cpp` survive deep sleep (RTC SRAM, 8KB
 
 ## Display
 
-- **Panel:** Waveshare 7.3" 7-color ACeP (GDEY073D46), 800×480 px
+- **Panel:** Waveshare 7.3" (F) 7-color ACeP, 800×480 px — driven with the GxEPD2 `GxEPD2_730c_GDEP073E01` class (the `GDEY073D46` class only latched marginally → faint/intermittent images)
 - **Left half:** x 0–399 (prayer times), **right half:** x 400–799 (weather)
 - Use `GxEPD_` color constants — never raw hex for display colors
 - Full refresh only — use `display.firstPage()` / `display.nextPage()` loop, never `display.display()` directly

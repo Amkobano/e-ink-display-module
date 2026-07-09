@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include <time.h>
 
-void displayPrayerTimes(const PrayerTimes &pt, const WeatherData &wd, const ForecastDay forecast[3]) {
+void displayPrayerTimes(const PrayerTimes &pt, const WeatherData &wd, const ForecastDay forecast[3], int batteryPct) {
   Serial.println("Rendering page 0: prayer times + weather...");
   display.setRotation(0);
   display.setFullWindow();
@@ -18,6 +18,18 @@ void displayPrayerTimes(const PrayerTimes &pt, const WeatherData &wd, const Fore
 
     // Vertical divider
     display.fillRect(399, 40, 2, 430, GxEPD_BLACK);
+
+    // Battery status — top-right corner: "NN%" then the battery glyph.
+    {
+      int battX = 742, battY = 10;            // battery body top-left
+      char pctStr[8];
+      snprintf(pctStr, sizeof(pctStr), "%d%%", batteryPct);
+      u8g2Fonts.setFont(u8g2_font_helvR14_tf);
+      int pw = u8g2Fonts.getUTF8Width(pctStr);
+      u8g2Fonts.setCursor(battX - pw - 8, battY + 18);
+      u8g2Fonts.print(pctStr);
+      drawBatteryIcon(battX, battY, batteryPct);
+    }
 
     // ========== LEFT SIDE: Prayer Times ==========
     int leftCenter = 200;

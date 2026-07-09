@@ -32,6 +32,7 @@ bool triggerWorkflow();
 String fetchTimestamp();
 void ledOff();
 void ledPulseDelay(uint32_t totalMs);
+int readBatteryPercent();
 
 // ============================================
 // CONFIGURATION
@@ -52,9 +53,11 @@ const char *NTP_SERVER = "pool.ntp.org";
 const char *TIMEZONE = "CET-1CEST,M3.5.0,M10.5.0/3";
 // ============================================
 
-// Display: Waveshare 7.3" 7-color (GDEY073D46), 800x480 pixels
-GxEPD2_7C<GxEPD2_730c_GDEY073D46, GxEPD2_730c_GDEY073D46::HEIGHT>
-    display(GxEPD2_730c_GDEY073D46(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+// Display: Waveshare 7.3" (F) 7-color ACeP, 800x480 pixels.
+// Use the GDEP073E01 driver — its waveform latches this panel crisply; the
+// GDEY073D46 driver only latched marginally (faint / intermittent images).
+GxEPD2_7C<GxEPD2_730c_GDEP073E01, GxEPD2_730c_GDEP073E01::HEIGHT>
+    display(GxEPD2_730c_GDEP073E01(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 // U8g2 fonts for Adafruit GFX - provides clean modern fonts like Open Sans
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
@@ -68,6 +71,7 @@ RTC_DATA_ATTR static ForecastDay forecast[3];
 RTC_DATA_ATTR static uint8_t  currentPage  = 0;   // 0 = weather/prayer, 1 = dua
 RTC_DATA_ATTR static uint8_t  duaIndex     = 0;   // which dua to show next
 RTC_DATA_ATTR static time_t   nextWakeTime = 0;   // epoch of next scheduled refresh
+RTC_DATA_ATTR static int      batteryPct   = 0;   // last battery reading (0-100)
 // ----------------------------------------
 
 #define NUM_DUAS 45   // total pre-rendered BMP images
@@ -313,6 +317,34 @@ void ledPulseDelay(uint32_t totalMs) {
   }
 }
 
+// Read the LiPo level as a percentage via the GPIO1 divider (see WIRING.md).
+// The pin reads Vbatt/2, so we double it, then map volts -> % on a LiPo curve.
+// Call with WiFi OFF so the radio's current draw doesn't sag the reading.
+int readBatteryPercent() {
+  analogSetPinAttenuation((gpio_num_t)BATTERY_PIN, ADC_11db);   // ~0-3.1V full scale
+  uint32_t acc = 0;
+  const int samples = 16;
+  for (int i = 0; i < samples; i++) acc += analogReadMilliVolts(BATTERY_PIN);
+  int mv = (int)((acc / samples) * 2);   // x2 for the 1:2 divider
+  Serial.printf("Battery: %d mV\n", mv);
+
+  // Piecewise single-cell LiPo discharge curve (mV -> %).
+  static const int curve[][2] = {
+      {4200, 100}, {4100, 90}, {4000, 80}, {3900, 70}, {3850, 60}, {3800, 50},
+      {3750, 40},  {3700, 33}, {3600, 20}, {3500, 10}, {3400, 5},  {3300, 2}, {3000, 0}};
+  const int n = sizeof(curve) / sizeof(curve[0]);
+  if (mv >= curve[0][0]) return 100;
+  if (mv <= curve[n - 1][0]) return 0;
+  for (int i = 0; i < n - 1; i++) {
+    if (mv >= curve[i + 1][0]) {   // between curve[i+1] (lower) and curve[i] (upper)
+      int vLo = curve[i + 1][0], pLo = curve[i + 1][1];
+      int vHi = curve[i][0],     pHi = curve[i][1];
+      return pLo + (mv - vLo) * (pHi - pLo) / (vHi - vLo);
+    }
+  }
+  return 0;
+}
+
 // Fetch just the "timestamp" field of the committed JSON (with a unique
 // cache-buster) so we can detect when a fresh workflow run has published data.
 String fetchTimestamp() {
@@ -401,7 +433,7 @@ void doCloudRefresh() {
   if (fetchPrayerTimes()) {
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
-    displayPrayerTimes(prayerTimes, weatherData, forecast);
+    displayPrayerTimes(prayerTimes, weatherData, forecast, batteryPct);
   } else {
     displayError(errorMsg.c_str());
   }
@@ -415,6 +447,9 @@ void setup() {
 
   // Initialize display on every wakeup
   display.init(115200, true, 20, false);
+
+  // Read battery now, while WiFi is still off (cleanest reading).
+  batteryPct = readBatteryPercent();
 
   if (cause == ESP_SLEEP_WAKEUP_EXT1) {
     // ---- Page toggle button (GPIO2): no WiFi needed ----
@@ -431,7 +466,7 @@ void setup() {
     Serial.printf("Page: %d, Dua: %d\n", currentPage, duaIndex);
 
     if (currentPage == 0) {
-      displayPrayerTimes(prayerTimes, weatherData, forecast);
+      displayPrayerTimes(prayerTimes, weatherData, forecast, batteryPct);
     } else {
       displayDua(duaIndex);
     }

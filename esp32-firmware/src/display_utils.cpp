@@ -175,6 +175,23 @@ void drawWeatherIcon(int x, int y, String iconCode) {
   }
 }
 
+// Battery status glyph: an outlined battery whose fill length + colour reflect the
+// charge level (green > 50 %, orange 20–50 %, red < 20 %). Body top-left at (x, y).
+void drawBatteryIcon(int x, int y, int pct) {
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+
+  const int w = 46, h = 22;         // battery body
+  display.drawRect(x, y, w, h, GxEPD_BLACK);
+  display.drawRect(x + 1, y + 1, w - 2, h - 2, GxEPD_BLACK);   // 2px border
+  display.fillRect(x + w, y + h / 2 - 4, 3, 8, GxEPD_BLACK);   // + terminal nub
+
+  uint16_t color = (pct > 50) ? GxEPD_GREEN : (pct >= 20 ? GxEPD_ORANGE : GxEPD_RED);
+  int innerW = w - 6;
+  int fillW  = innerW * pct / 100;
+  if (fillW > 0) display.fillRect(x + 3, y + 3, fillW, h - 6, color);
+}
+
 void clearDisplay() {
   // Flush residual charge to restore contrast on ACeP 7-color panels.
   // Does NOT power off — caller re-inits the display after this.

@@ -91,6 +91,58 @@ that LOW level (`ESP_EXT1_WAKEUP_ANY_LOW`).
 - Optional: 1× 100 nF capacitor (debounce)
 - Jumper wires
 
+## Battery Status (voltage sensing on GPIO 1)
+
+To show a **battery status bar / %**, the firmware measures the battery voltage with the
+ESP32's ADC. A pin can only take up to **3.3 V**, but a full LiPo is **4.2 V** — so a
+**2 : 1 divider** (two equal resistors) halves the voltage to a safe level, and the code
+doubles it back.
+
+⚠️ **Tap the raw cell voltage** — the `TP4056 OUT+` node (= `MT3608 IN+`, ~3.0–4.2 V) —
+**not** the boosted 5 V rail. Measuring the 5 V rail would just read a constant ~5 V and
+tell you nothing about the battery level.
+
+### Schematic
+
+```text
+   Battery +   (raw cell: TP4056 OUT+ / MT3608 IN+,  3.0–4.2 V)
+       │
+    [ 100 kΩ ]   R1
+       │
+       ├───────────●  GPIO 1 (ADC)   → reads ≈ Vbatt / 2   (×2 in firmware)
+       │
+    [ 100 kΩ ]   R2
+       │
+      GND          (same ground as the ESP32)
+```
+
+GPIO 1 sits in the middle of the two resistors, so it always reads **half** the battery
+voltage — max ≈ 2.1 V, safely under the 3.3 V ADC limit.
+
+### Wiring steps
+
+1. **Battery + (TP4056 OUT+)** → one leg of **R1 (100 kΩ)**.
+2. R1's other leg → **GPIO 1** — this junction is the sense point.
+3. **GPIO 1** → one leg of **R2 (100 kΩ)**.
+4. R2's other leg → **GND** (the same ground as the ESP32).
+
+### Notes
+
+- **Equal resistors = clean 2 : 1 ratio.** The 100 kΩ + 100 kΩ pair draws ~21 µA
+  continuously; to reduce that during deep sleep use larger equal values (e.g.
+  220 kΩ/220 kΩ or 1 MΩ/1 MΩ). Higher values read slightly noisier — add the cap below.
+- **Optional smoothing:** a **100 nF** capacitor from GPIO 1 to GND steadies the reading.
+- **Firmware:** read GPIO 1 with `analogReadMilliVolts()` (factory-calibrated), average a
+  few samples, **×2**, then map volts → % (4.2 V ≈ 100 %, 3.0 V ≈ 0 %). Read while WiFi is
+  **off** so the radio's current draw doesn't drag the voltage down.
+- `BATTERY_PIN = GPIO 1` is already defined in `pins.h`.
+
+### Parts
+
+- 2× **100 kΩ** resistors (equal values — the divider)
+- Optional: 1× **100 nF** capacitor (ADC smoothing)
+- Jumper wires
+
 ## Connection Steps
 
 ### 1. Prepare Materials
