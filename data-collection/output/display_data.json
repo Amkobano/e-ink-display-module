@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-09T07:13:53.016036",
+  "timestamp": "2026-07-09T07:18:54.828914",
   "next_update": "2026-07-10T06:00:00",
   "prayer_times": {
     "fajr": "04:30",
@@ -11,8 +11,8 @@
   },
   "weather": {
     "current": {
-      "temperature": 16,
-      "feels_like": 16,
+      "temperature": 17,
+      "feels_like": 17,
       "humidity": 86,
       "condition": "Clear",
       "description": "clear sky",
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "status": "partial"
+  "status": "success"
 }
