@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-14T02:07:25.828426",
+  "timestamp": "2026-07-14T07:39:45.686884",
   "next_update": "2026-07-15T06:00:00",
   "prayer_times": {
     "fajr": "04:45",
@@ -11,36 +11,36 @@
   },
   "weather": {
     "current": {
-      "temperature": 20,
-      "feels_like": 20,
-      "humidity": 65,
+      "temperature": 21,
+      "feels_like": 21,
+      "humidity": 70,
       "condition": "Clouds",
       "description": "overcast clouds",
-      "icon": "04n",
-      "wind_speed": 1.8,
+      "icon": "04d",
+      "wind_speed": 0.9,
       "sunrise": 1784000085,
       "sunset": 1784056985
     },
     "forecast": [
       {
         "date": "2026-07-15",
-        "temperature": 31,
-        "rain_chance": 20,
+        "temperature": 29,
+        "rain_chance": 26,
         "condition": "Clouds"
       },
       {
         "date": "2026-07-16",
         "temperature": 32,
-        "rain_chance": 13,
+        "rain_chance": 10,
         "condition": "Clouds"
       },
       {
         "date": "2026-07-17",
-        "temperature": 33,
-        "rain_chance": 35,
+        "temperature": 31,
+        "rain_chance": 28,
         "condition": "Clouds"
       }
     ]
   },
-  "status": "success"
+  "status": "partial"
 }
