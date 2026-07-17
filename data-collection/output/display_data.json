@@ -1,37 +1,31 @@
 {
-  "timestamp": "2026-07-17T02:02:00.613495",
-  "next_update": "2026-07-18T06:00:00",
+  "timestamp": "2026-07-18T01:56:18.983905",
+  "next_update": "2026-07-19T06:00:00",
   "prayer_times": {
     "fajr": "04:45",
-    "shuruq": "05:37",
+    "shuruq": "05:39",
     "dhuhr": "13:34",
     "asr": "17:47",
-    "maghrib": "21:27",
-    "isha": "22:49"
+    "maghrib": "21:25",
+    "isha": "22:45"
   },
   "weather": {
     "current": {
-      "temperature": 18,
+      "temperature": 17,
       "feels_like": 18,
-      "humidity": 91,
+      "humidity": 94,
       "condition": "Clouds",
-      "description": "overcast clouds",
-      "icon": "04n",
-      "wind_speed": 3.9,
-      "sunrise": 1784259476,
-      "sunset": 1784316030
+      "description": "scattered clouds",
+      "icon": "03n",
+      "wind_speed": 2.0,
+      "sunrise": 1784345943,
+      "sunset": 1784402373
     },
     "forecast": [
       {
-        "date": "2026-07-18",
-        "temperature": 26,
-        "rain_chance": 49,
-        "condition": "Rain"
-      },
-      {
         "date": "2026-07-19",
-        "temperature": 23,
-        "rain_chance": 56,
+        "temperature": 22,
+        "rain_chance": 58,
         "condition": "Rain"
       },
       {
@@ -39,8 +33,14 @@
         "temperature": 23,
         "rain_chance": 0,
         "condition": "Clouds"
+      },
+      {
+        "date": "2026-07-21",
+        "temperature": 21,
+        "rain_chance": 0,
+        "condition": "Clouds"
       }
     ]
   },
-  "status": "partial"
+  "status": "success"
 }
