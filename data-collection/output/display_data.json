@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-17T00:04:25.114798",
+  "timestamp": "2026-07-17T02:02:00.613495",
   "next_update": "2026-07-18T06:00:00",
   "prayer_times": {
     "fajr": "04:45",
@@ -11,13 +11,13 @@
   },
   "weather": {
     "current": {
-      "temperature": 19,
-      "feels_like": 19,
+      "temperature": 18,
+      "feels_like": 18,
       "humidity": 91,
       "condition": "Clouds",
       "description": "overcast clouds",
       "icon": "04n",
-      "wind_speed": 5.1,
+      "wind_speed": 3.9,
       "sunrise": 1784259476,
       "sunset": 1784316030
     },
