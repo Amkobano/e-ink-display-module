@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-07-19T00:02:00.457834",
+  "timestamp": "2026-07-19T00:05:15.857102",
   "next_update": "2026-07-20T06:00:00",
   "prayer_times": {
     "fajr": "04:45",
-    "shuruq": "05:39",
+    "shuruq": "05:40",
     "dhuhr": "13:34",
     "asr": "17:47",
-    "maghrib": "21:25",
-    "isha": "22:45"
+    "maghrib": "21:24",
+    "isha": "22:43"
   },
   "weather": {
     "current": {
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "status": "partial"
+  "status": "success"
 }
