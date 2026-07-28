@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-28T00:05:18.628704",
+  "timestamp": "2026-07-28T02:05:25.297493",
   "next_update": "2026-07-29T06:00:00",
   "prayer_times": {
     "fajr": "05:00",
@@ -11,15 +11,15 @@
   },
   "weather": {
     "current": {
-      "temperature": 18,
-      "feels_like": 18,
-      "humidity": 74,
+      "temperature": 16,
+      "feels_like": 16,
+      "humidity": 82,
       "condition": "Clear",
       "description": "clear sky",
       "icon": "01n",
-      "wind_speed": 1.9,
-      "sunrise": 1785124196,
-      "sunset": 1785179365
+      "wind_speed": 1.3,
+      "sunrise": 1785210673,
+      "sunset": 1785265688
     },
     "forecast": [
       {
