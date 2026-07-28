@@ -1,13 +1,13 @@
 {
-  "timestamp": "2026-07-28T23:57:28.975754",
-  "next_update": "2026-07-29T06:00:00",
+  "timestamp": "2026-07-29T00:05:23.914885",
+  "next_update": "2026-07-30T06:00:00",
   "prayer_times": {
     "fajr": "05:00",
-    "shuruq": "05:51",
-    "dhuhr": "13:35",
+    "shuruq": "05:53",
+    "dhuhr": "13:34",
     "asr": "17:43",
-    "maghrib": "21:13",
-    "isha": "22:24"
+    "maghrib": "21:12",
+    "isha": "22:22"
   },
   "weather": {
     "current": {
@@ -18,16 +18,10 @@
       "description": "clear sky",
       "icon": "01n",
       "wind_speed": 1.5,
-      "sunrise": 1785210673,
-      "sunset": 1785265688
+      "sunrise": 1785297151,
+      "sunset": 1785352008
     },
     "forecast": [
-      {
-        "date": "2026-07-29",
-        "temperature": 38,
-        "rain_chance": 0,
-        "condition": "Clear"
-      },
       {
         "date": "2026-07-30",
         "temperature": 40,
@@ -38,6 +32,12 @@
         "date": "2026-07-31",
         "temperature": 36,
         "rain_chance": 11,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-08-01",
+        "temperature": 30,
+        "rain_chance": 0,
         "condition": "Clouds"
       }
     ]
