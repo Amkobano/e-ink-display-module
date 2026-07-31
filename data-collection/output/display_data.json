@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-08-01T00:08:22.451546",
+  "timestamp": "2026-08-01T00:09:09.603668",
   "next_update": "2026-08-02T06:00:00",
   "prayer_times": {
     "fajr": "05:00",
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "status": "partial"
+  "status": "success"
 }
