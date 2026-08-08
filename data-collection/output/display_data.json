@@ -1,23 +1,23 @@
 {
-  "timestamp": "2026-08-09T00:05:16.743866",
+  "timestamp": "2026-08-09T01:33:43.795629",
   "next_update": "2026-08-10T06:00:00",
   "prayer_times": {
     "fajr": "05:15",
-    "shuruq": "06:06",
+    "shuruq": "06:07",
     "dhuhr": "13:34",
-    "asr": "17:36",
-    "maghrib": "20:59",
-    "isha": "22:29"
+    "asr": "17:35",
+    "maghrib": "20:57",
+    "isha": "22:27"
   },
   "weather": {
     "current": {
-      "temperature": 21,
-      "feels_like": 21,
-      "humidity": 55,
+      "temperature": 20,
+      "feels_like": 19,
+      "humidity": 63,
       "condition": "Clear",
       "description": "clear sky",
       "icon": "01n",
-      "wind_speed": 1.0,
+      "wind_speed": 1.5,
       "sunrise": 1786248449,
       "sunset": 1786301416
     },
@@ -42,5 +42,5 @@
       }
     ]
   },
-  "status": "partial"
+  "status": "success"
 }
