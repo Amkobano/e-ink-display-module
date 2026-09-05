@@ -1,43 +1,43 @@
 {
-  "timestamp": "2026-09-04T02:52:41.919986",
-  "next_update": "2026-09-05T06:00:00",
+  "timestamp": "2026-09-05T02:46:19.194099",
+  "next_update": "2026-09-06T06:00:00",
   "prayer_times": {
-    "fajr": "04:43",
-    "shuruq": "06:44",
+    "fajr": "04:45",
+    "shuruq": "06:45",
     "dhuhr": "13:27",
-    "asr": "16:59",
-    "maghrib": "20:07",
-    "isha": "21:37"
+    "asr": "16:57",
+    "maghrib": "20:05",
+    "isha": "21:35"
   },
   "weather": {
     "current": {
-      "temperature": 19,
-      "feels_like": 19,
-      "humidity": 71,
+      "temperature": 21,
+      "feels_like": 21,
+      "humidity": 72,
       "condition": "Clouds",
-      "description": "few clouds",
-      "icon": "02n",
-      "wind_speed": 2.1,
-      "sunrise": 1788497052,
-      "sunset": 1788544862
+      "description": "overcast clouds",
+      "icon": "04n",
+      "wind_speed": 6.2,
+      "sunrise": 1788583537,
+      "sunset": 1788631137
     },
     "forecast": [
       {
-        "date": "2026-09-05",
-        "temperature": 25,
-        "rain_chance": 30,
-        "condition": "Rain"
-      },
-      {
         "date": "2026-09-06",
-        "temperature": 25,
+        "temperature": 26,
         "rain_chance": 0,
         "condition": "Clouds"
       },
       {
         "date": "2026-09-07",
         "temperature": 30,
-        "rain_chance": 12,
+        "rain_chance": 0,
+        "condition": "Clouds"
+      },
+      {
+        "date": "2026-09-08",
+        "temperature": 28,
+        "rain_chance": 10,
         "condition": "Clouds"
       }
     ]
